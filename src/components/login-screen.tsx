@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Shield, Lock, Building2, ChevronRight, Globe2, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -16,32 +17,48 @@ const DEMO_USERS = [
 
 export function LoginScreen() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const setView = useApp((s) => s.setView);
   const [selectedEmail, setSelectedEmail] = useState(DEMO_USERS[0].email);
   const [password, setPassword] = useState("demo123");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // If session becomes available, force refresh + push to overview
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && session) {
+      router.refresh();
       setView("overview");
     }
-  }, [status, setView]);
+  }, [status, session, router, setView]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const result = await signIn("credentials", {
-      email: selectedEmail,
-      password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError("Authentication failed — check credentials and try again.");
+    try {
+      const result = await signIn("credentials", {
+        email: selectedEmail,
+        password,
+        redirect: false,
+      });
+      setLoading(false);
+      if (result?.error) {
+        setError("Authentication failed — check credentials and try again. (Demo password: demo123)");
+      } else if (result?.ok) {
+        // Force a hard refresh so useSession picks up the new cookie
+        // (especially important for cross-origin preview scenarios)
+        router.refresh();
+        // Fallback: if router.refresh doesn't immediately update useSession,
+        // a soft reload guarantees the session is loaded
+        setTimeout(() => router.refresh(), 200);
+      } else {
+        setError("Unexpected response from auth provider.");
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setError("Network error: " + (err?.message ?? "unknown"));
     }
-    // On success, the useEffect above will switch view
   }
 
   return (
@@ -211,3 +228,4 @@ export function LoginScreen() {
     </div>
   );
 }
+

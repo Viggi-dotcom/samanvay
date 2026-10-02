@@ -18,8 +18,9 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials.email.toLowerCase().trim();
         const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email },
           include: { ministry: true },
         });
         if (!user) return null;
@@ -69,6 +70,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET ?? "samanvay-dev-secret-change-in-production",
+  // trustHost auto-derives the auth URL from the request, fixing the
+  // NEXTAUTH_URL warning when accessed via the preview domain or localhost.
+  trustHost: true,
 };
 
 export type AppSession = {
@@ -81,3 +85,4 @@ export type AppSession = {
     assignedMinistryId: string | null;
   };
 };
+
