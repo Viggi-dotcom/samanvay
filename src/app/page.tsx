@@ -16,6 +16,8 @@ import { SchemesDirectoryView } from "@/components/views/schemes-directory";
 import { SchemeDetailView } from "@/components/views/scheme-detail";
 import { IntelligenceQueryView } from "@/components/views/intelligence-query";
 import { IntelligenceAlertsView } from "@/components/views/intelligence-alerts";
+import { InsightsView } from "@/components/views/insights";
+import { SimulatorView } from "@/components/views/simulator";
 import {
   AdminPipelinesView,
   AdminUsersView,
@@ -41,8 +43,10 @@ export default function Page() {
   return (
     <AppShell>
       {view === "overview" && <OverviewView />}
+      {view === "insights" && <InsightsView />}
       {view === "convergence-matrix" && <ConvergenceMatrixView />}
       {view === "convergence-compare" && <ConvergenceCompareView />}
+      {view === "simulator" && <SimulatorView />}
       {view === "geo-national" && <GeoNationalView />}
       {view === "geo-state" && <GeoStateView />}
       {view === "geo-district" && <GeoDistrictView />}
@@ -56,5 +60,4 @@ export default function Page() {
   );
 }
 
-// Re-export signOut so the Header can use it
 export { signOut };

@@ -16,6 +16,8 @@ export type ViewId =
   | "scheme-detail"
   | "intelligence-query"
   | "intelligence-alerts"
+  | "insights"
+  | "simulator"
   | "admin-pipelines"
   | "admin-users";
 

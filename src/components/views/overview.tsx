@@ -5,16 +5,16 @@ import {
   Users,
   Activity,
   AlertTriangle,
-  TrendingUp,
-  TrendingDown,
   ArrowRight,
   Zap,
   GitMerge,
   MapPin,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { useApp, PageHeader, KpiCard, Card } from "@/components/app-shell";
 import { Choropleth } from "@/components/choropleth";
+import { ActivityFeed } from "@/components/activity-feed";
 import {
   AI_INSIGHTS,
   STATES,
@@ -25,9 +25,11 @@ import {
   useKpis,
   useSchemes,
   useGeoNational,
+  useExportBrief,
   type Kpis,
   type SchemeSummary,
 } from "@/lib/api/hooks";
+import { toast } from "sonner";
 
 export function OverviewView() {
   const filters = useApp((s) => s.filters);
@@ -38,11 +40,11 @@ export function OverviewView() {
   const { data: kpis, isLoading: kpisLoading } = useKpis(filters);
   const { data: schemesData } = useSchemes({ stateLgd: filters.stateLgd, districtLgd: filters.districtLgd, fy: filters.fy });
   const schemes = schemesData?.schemes ?? [];
+  const briefMutation = useExportBrief();
 
-  // Divergent districts (top 6 worst utilization from geo-national)
   const { data: geoData } = useGeoNational(filters.schemeId);
   const divergent = (geoData?.states ?? [])
-    .flatMap((s) => s) // we only have state-level; will refine later if needed
+    .flatMap((s) => s)
     .sort((a, b) => a.metrics.util - b.metrics.util)
     .slice(0, 6);
 
@@ -52,6 +54,16 @@ export function OverviewView() {
       : filters.stateLgd
         ? STATES.find((s) => s.lgd_code === filters.stateLgd)?.entity_name
         : "Pan-India";
+
+  function exportBrief() {
+    briefMutation.mutate(
+      { stateLgd: filters.stateLgd, schemeId: filters.schemeId },
+      {
+        onSuccess: () => toast.success("Executive Brief PDF generated"),
+        onError: (err: any) => toast.error(`Brief failed: ${err.message}`),
+      }
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,13 +77,23 @@ export function OverviewView() {
           </span>
         }
         actions={
-          <button
-            onClick={() => setView("convergence-matrix")}
-            className="h-9 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
-          >
-            <GitMerge className="h-3.5 w-3.5" />
-            Open Convergence Matrix
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportBrief}
+              disabled={briefMutation.isPending}
+              className="h-9 px-3 rounded-md bg-app border border-subtle hover:border-blue-600/50 text-xs text-secondary-muted hover:text-white flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {briefMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+              Export Brief (PDF)
+            </button>
+            <button
+              onClick={() => setView("convergence-matrix")}
+              className="h-9 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <GitMerge className="h-3.5 w-3.5" />
+              Open Convergence Matrix
+            </button>
+          </div>
         }
       />
 
@@ -134,7 +156,7 @@ export function OverviewView() {
             actions={
               <div className="flex items-center gap-1 text-[10px] text-tertiary">
                 <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                GIS vector tiles · LGD-anchored
+                Real India GeoJSON · LGD-anchored
               </div>
             }
             bodyClassName="p-0"
@@ -149,7 +171,7 @@ export function OverviewView() {
           </Card>
         </div>
 
-        <div className="xl:col-span-4">
+        <div className="xl:col-span-4 space-y-4">
           <Card
             title="Top Divergent States"
             subtitle="Fund flow high · milestone lagging"
@@ -157,9 +179,7 @@ export function OverviewView() {
           >
             <div className="divide-y divide-subtle">
               {divergent.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-tertiary">
-                  Loading divergent states…
-                </div>
+                <div className="px-4 py-8 text-center text-xs text-tertiary">Loading divergent states…</div>
               ) : (
                 divergent.map((s, i) => (
                   <button
@@ -167,25 +187,16 @@ export function OverviewView() {
                     onClick={() => openState(s.lgd_code)}
                     className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors flex items-center gap-3"
                   >
-                    <div className="text-[10px] font-mono text-tertiary w-4">
-                      {i + 1}
-                    </div>
+                    <div className="text-[10px] font-mono text-tertiary w-4">{i + 1}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">
-                        {s.entity_name}
-                      </div>
+                      <div className="text-sm font-semibold text-white truncate">{s.entity_name}</div>
                       <div className="text-[11px] text-tertiary truncate flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        State LGD {s.lgd_code}
+                        <MapPin className="h-3 w-3" />State LGD {s.lgd_code}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-sm font-mono font-bold text-red-300">
-                        {s.metrics.util.toFixed(1)}%
-                      </div>
-                      <div className="text-[10px] text-tertiary">
-                        {fmtCr(s.metrics.released)}
-                      </div>
+                      <div className="text-sm font-mono font-bold text-red-300">{s.metrics.util.toFixed(1)}%</div>
+                      <div className="text-[10px] text-tertiary">{fmtCr(s.metrics.released)}</div>
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 text-tertiary shrink-0" />
                   </button>
@@ -202,6 +213,9 @@ export function OverviewView() {
               </button>
             </div>
           </Card>
+
+          {/* Live Activity Feed */}
+          <ActivityFeed limit={8} />
         </div>
       </div>
 
@@ -219,10 +233,10 @@ export function OverviewView() {
             </p>
           </div>
           <button
-            onClick={() => setView("intelligence-alerts")}
+            onClick={() => setView("insights")}
             className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
           >
-            View all alerts
+            View AI Insight Engine
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
@@ -234,49 +248,26 @@ export function OverviewView() {
               bodyClassName="p-4"
             >
               <div className="flex items-start gap-2 mb-2">
-                <span
-                  className={
-                    "text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border " +
-                    (insight.type === "OVERLAP"
-                      ? "bg-blue-950 text-blue-300 border-blue-900/60"
-                      : insight.type === "GAP"
-                        ? "bg-amber-950 text-amber-300 border-amber-900/60"
-                        : "bg-red-950 text-red-300 border-red-900/60")
-                  }
-                >
+                <span className={"text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border " +
+                  (insight.type === "OVERLAP" ? "bg-blue-950 text-blue-300 border-blue-900/60" :
+                   insight.type === "GAP" ? "bg-amber-950 text-amber-300 border-amber-900/60" :
+                   "bg-red-950 text-red-300 border-red-900/60")}>
                   {insight.type}
                 </span>
-                <span
-                  className={
-                    "text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border " +
-                    (insight.severity === "critical"
-                      ? "bg-red-950 text-red-300 border-red-900/60"
-                      : "bg-amber-950 text-amber-300 border-amber-900/60")
-                  }
-                >
+                <span className={"text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border " +
+                  (insight.severity === "critical" ? "bg-red-950 text-red-300 border-red-900/60" : "bg-amber-950 text-amber-300 border-amber-900/60")}>
                   {insight.severity}
                 </span>
               </div>
-              <h4 className="text-sm font-semibold text-white mb-1.5 leading-snug">
-                {insight.title}
-              </h4>
-              <p className="text-[11px] text-secondary-muted leading-relaxed mb-3">
-                {insight.detail}
-              </p>
+              <h4 className="text-sm font-semibold text-white mb-1.5 leading-snug">{insight.title}</h4>
+              <p className="text-[11px] text-secondary-muted leading-relaxed mb-3">{insight.detail}</p>
               <div className="flex items-center justify-between text-[10px] text-tertiary">
                 <div className="flex items-center gap-1">
                   {insight.affectedSchemes.map((s) => (
-                    <span
-                      key={s}
-                      className="font-mono px-1 py-0.5 rounded bg-app border border-subtle"
-                    >
-                      {s}
-                    </span>
+                    <span key={s} className="font-mono px-1 py-0.5 rounded bg-app border border-subtle">{s}</span>
                   ))}
                 </div>
-                <span className="font-mono">
-                  {insight.districts} district{insight.districts > 1 ? "s" : ""}
-                </span>
+                <span className="font-mono">{insight.districts} district{insight.districts > 1 ? "s" : ""}</span>
               </div>
             </Card>
           ))}
@@ -301,9 +292,7 @@ export function OverviewView() {
                 <div className="flex items-center gap-2 mb-3">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
                   <span className="text-sm font-semibold text-white">{s.scheme_code}</span>
-                  <span className="text-[10px] font-mono text-tertiary ml-auto">
-                    {s.scheme_type.replace(/_/g, " ")}
-                  </span>
+                  <span className="text-[10px] font-mono text-tertiary ml-auto">{s.scheme_type.replace(/_/g, " ")}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
@@ -320,16 +309,9 @@ export function OverviewView() {
                   </div>
                   <div>
                     <div className="text-tertiary text-[10px] uppercase">Util %</div>
-                    <div
-                      className={
-                        "font-mono font-semibold " +
-                        (s.metrics.utilizationPct >= 70
-                          ? "text-emerald-400"
-                          : s.metrics.utilizationPct >= 50
-                            ? "text-amber-300"
-                            : "text-red-300")
-                      }
-                    >
+                    <div className={"font-mono font-semibold " +
+                      (s.metrics.utilizationPct >= 70 ? "text-emerald-400" :
+                       s.metrics.utilizationPct >= 50 ? "text-amber-300" : "text-red-300")}>
                       {s.metrics.utilizationPct.toFixed(1)}%
                     </div>
                   </div>

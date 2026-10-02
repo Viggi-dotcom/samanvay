@@ -13,6 +13,8 @@ import {
   Database,
   Shield,
   ChevronRight,
+  FlaskConical,
+  Sparkles,
 } from "lucide-react";
 import { useApp, type ViewId } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -28,8 +30,10 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { id: "overview", label: "Executive Command Center", icon: LayoutDashboard, group: "Intelligence" },
+  { id: "insights", label: "AI Insight Engine", icon: Sparkles, group: "Intelligence" },
   { id: "convergence-matrix", label: "Convergence Matrix", icon: GitMerge, group: "Intelligence" },
   { id: "convergence-compare", label: "Scheme Comparison", icon: GitMerge, group: "Intelligence" },
+  { id: "simulator", label: "Convergence Simulator", icon: FlaskConical, group: "Intelligence" },
   { id: "geo-national", label: "National Geo View", icon: Globe2, group: "Geographic" },
   { id: "schemes-directory", label: "Scheme Directory", icon: Building2, group: "Schemes" },
   { id: "intelligence-query", label: "NL Query Workbench", icon: Brain, group: "AI Reasoning" },

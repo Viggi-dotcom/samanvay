@@ -398,3 +398,125 @@ export function useAuditLog(limit = 50) {
     },
   });
 }
+
+// ---------- Live activity feed ----------
+
+export function useActivityFeed(limit = 20) {
+  return useQuery<{ logs: AuditLogEntry[] }>({
+    queryKey: ["feed", limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/feed?limit=${limit}`);
+      if (!res.ok) throw new Error(`Feed ${res.status}`);
+      return res.json();
+    },
+    refetchInterval: 5000, // poll every 5s for live updates
+  });
+}
+
+// ---------- AI Insight Engine (Z-score scatter) ----------
+
+export interface InsightPoint {
+  lgd_code: number;
+  district_name: string;
+  state_name: string;
+  state_lgd: number;
+  released: number;
+  utilized: number;
+  allocated: number;
+  util_pct: number;
+  anomaly_count: number;
+  critical_count: number;
+  z_score: number;
+  quadrant: "CRITICAL" | "DIVERGENT" | "UNDERPERFORMING" | "STABLE" | "EFFICIENT";
+}
+
+export interface InsightCard {
+  id: string;
+  type: string;
+  title: string;
+  detail: string;
+  severity: "critical" | "warning" | "success";
+  count: number;
+}
+
+export function useInsights(schemeId?: string | null, stateLgd?: number | null) {
+  return useQuery<{ points: InsightPoint[]; insights: InsightCard[]; summary: Record<string, number> }>({
+    queryKey: ["insights", schemeId ?? "all", stateLgd ?? "all"],
+    queryFn: async () => {
+      const p = new URLSearchParams();
+      if (schemeId) p.set("schemeId", schemeId);
+      const res = await fetch(`/api/insights?${p.toString()}`);
+      if (!res.ok) throw new Error(`Insights ${res.status}`);
+      return res.json();
+    },
+  });
+}
+
+// ---------- Convergence Simulator ----------
+
+export interface SimulationResult {
+  scenario: {
+    fromSchemeId: string;
+    toSchemeId: string;
+    reallocateCr: number;
+    targetStateLgd: number | null;
+    fy: string;
+    simulatedAt: string;
+    simulatedBy: string;
+  };
+  source_scheme: {
+    total_allocated: number;
+    total_released: number;
+    total_utilized: number;
+    underutilized_districts: number;
+    unused_cr_available: number;
+    top_underutilized: { district: string; lgdCode: number; unusedCr: number; utilPct: number }[];
+  };
+  target_scheme: {
+    baseline: { allocated: number; released: number; utilized: number; utilization_pct: number; beneficiaries: number; achieved_units: number; target_units: number; achievement_pct: number };
+    projected: { released: number; utilized: number; utilization_pct: number; beneficiaries: number; achieved_units: number; achievement_pct: number; additional_units: number; additional_beneficiaries: number };
+    delta: { utilization_pct: number; additional_units: number; additional_beneficiaries: number };
+  };
+  impact: { anomalies_potentially_resolved: number; affected_anomaly_ids: string[]; estimated_households_lifted: number; estimated_districts_impacted: number };
+  disclaimer: string;
+}
+
+export function useSimulator() {
+  return useMutation({
+    mutationFn: async (params: { fromScheme: string; toScheme: string; reallocateCr: number; targetStateLgd?: number | null }) => {
+      const res = await fetch("/api/simulator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      return json as SimulationResult;
+    },
+  });
+}
+
+// ---------- PDF Brief Export ----------
+
+export function useExportBrief() {
+  return useMutation({
+    mutationFn: async (params: { stateLgd?: number | null; schemeId?: string | null }) => {
+      const p = new URLSearchParams();
+      if (params.stateLgd) p.set("stateLgd", String(params.stateLgd));
+      if (params.schemeId) p.set("schemeId", params.schemeId);
+      const res = await fetch(`/api/brief?${p.toString()}`);
+      if (!res.ok) throw new Error(`Brief ${res.status}`);
+      const blob = await res.blob();
+      // Trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `samanvay-executive-brief-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return { ok: true };
+    },
+  });
+}
