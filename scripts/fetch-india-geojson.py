@@ -86,6 +86,7 @@ STATE_LGD = {
     "Uttarakhand": 5,
     "West Bengal": 19,
     "Andaman & Nicobar Island": 35,
+    "Andaman and Nicobar": 35,
     "Andaman and Nicobar Islands": 35,
     "Chandigarh": 4,
     "Dadra and Nagar Haveli": 26,
@@ -95,7 +96,10 @@ STATE_LGD = {
     "Jammu and Kashmir": 1,
     "Ladakh": 37,
     "Lakshadweep": 31,
+    "Orissa": 21,  # renamed to Odisha in 2011
     "Puducherry": 34,
+    "Telangana": 36,
+    "Uttaranchal": 5,  # renamed to Uttarakhand in 2007
 }
 
 if __name__ == "__main__":

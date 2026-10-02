@@ -59,15 +59,32 @@ export async function POST(req: NextRequest) {
   });
 
   // Identify underutilized funds in source scheme (util < 50%)
-  const underutilized = fromAllocs
-    .map((a) => ({
+  // Aggregate by lgdCode so multiple quarters don't produce duplicate rows
+  const byLgd = new Map<number, {
+    district: string;
+    lgdCode: number;
+    allocated: number;
+    released: number;
+    utilized: number;
+  }>();
+  for (const a of fromAllocs) {
+    const cur = byLgd.get(a.lgdCode) ?? {
       district: a.geography.name,
       lgdCode: a.lgdCode,
-      allocated: a.allocatedCr,
-      released: a.releasedCr,
-      utilized: a.utilizedCr,
-      utilPct: a.releasedCr > 0 ? (a.utilizedCr / a.releasedCr) * 100 : 0,
-      unusedCr: Math.max(0, a.releasedCr - a.utilizedCr),
+      allocated: 0,
+      released: 0,
+      utilized: 0,
+    };
+    cur.allocated += a.allocatedCr;
+    cur.released += a.releasedCr;
+    cur.utilized += a.utilizedCr;
+    byLgd.set(a.lgdCode, cur);
+  }
+  const underutilized = Array.from(byLgd.values())
+    .map((d) => ({
+      ...d,
+      utilPct: d.released > 0 ? (d.utilized / d.released) * 100 : 0,
+      unusedCr: Math.max(0, d.released - d.utilized),
     }))
     .filter((d) => d.utilPct < 50 && d.unusedCr > 0)
     .sort((a, b) => b.unusedCr - a.unusedCr);

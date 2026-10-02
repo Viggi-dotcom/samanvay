@@ -241,8 +241,8 @@ export function SimulatorView() {
               {/* Source scheme unused funds */}
               <Card title="Source Scheme: Underutilized Funds" subtitle={`${result.source_scheme.underutilized_districts} districts with util < 50%`} bodyClassName="p-0">
                 <div className="divide-y divide-subtle">
-                  {result.source_scheme.top_underutilized.map((d) => (
-                    <div key={d.lgdCode} className="px-4 py-3 flex items-center gap-3">
+                  {result.source_scheme.top_underutilized.map((d, i) => (
+                    <div key={`${d.lgdCode}-${d.district}-${i}`} className="px-4 py-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-white">{d.district}</div>
                         <div className="text-[10px] text-tertiary font-mono">LGD {d.lgdCode} · {d.utilPct.toFixed(1)}% utilization</div>

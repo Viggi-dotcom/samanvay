@@ -149,6 +149,32 @@ export async function POST(req: NextRequest) {
         const executionMs = Date.now() - startTime;
         send("rows", { rows: rows.slice(0, 100), row_count: rows.length, execution_ms: executionMs });
 
+        // If LLM SQL returned 0 rows AND the prompt mentions a specific state,
+        // try the fallback template which uses known-good SQL
+        if (rows.length === 0) {
+          const fallbackSql = generateFallbackSql(prompt, claims, currentFilters);
+          if (fallbackSql !== executedSql) {
+            try {
+              const fallbackRows = await db.$queryRawUnsafe(fallbackSql);
+              const fallbackRowsClean = fallbackRows.map((r) => {
+                const out: Record<string, unknown> = {};
+                for (const [k, v] of Object.entries(r)) {
+                  if (typeof v === "bigint") out[k] = Number(v);
+                  else if (v instanceof Date) out[k] = v.toISOString();
+                  else out[k] = v;
+                }
+                return out;
+              });
+              if (fallbackRowsClean.length > 0) {
+                rows = fallbackRowsClean;
+                executedSql = fallbackSql;
+                rationale = "Generated via fallback template (LLM SQL returned 0 rows — likely over-constrained).";
+                send("rows", { rows: rows.slice(0, 100), row_count: rows.length, execution_ms: executionMs, fallback_used: true });
+              }
+            } catch {}
+          }
+        }
+
         // Stream synthesis
         send("status", { stage: "synthesizing", message: "Synthesizing executive narrative..." });
         try {
