@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   Filter,
@@ -10,10 +10,12 @@ import {
   ChevronRight,
   Bug,
   Activity,
+  Loader2,
 } from "lucide-react";
 import { useApp, PageHeader, Card, SeverityBadge, StatusPill } from "@/components/app-shell";
-import { ANOMALIES, SCHEMES, DISTRICTS, STATES } from "@/lib/data";
+import { useAnomalies, useUpdateAnomaly } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type FilterStatus = "ALL" | "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
 type FilterSeverity = "ALL" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
@@ -22,31 +24,24 @@ export function IntelligenceAlertsView() {
   const filters = useApp((s) => s.filters);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("ALL");
   const [sevFilter, setSevFilter] = useState<FilterSeverity>("ALL");
-  const [expanded, setExpanded] = useState<string | null>(ANOMALIES[0].anomaly_id);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    return ANOMALIES.filter((a) => {
-      if (filters.districtLgd && a.lgd_code !== filters.districtLgd) return false;
-      if (filters.stateLgd) {
-        const d = DISTRICTS.find((x) => x.lgd_code === a.lgd_code);
-        if (!d || d.state_lgd !== filters.stateLgd) return false;
-      }
-      if (statusFilter !== "ALL" && a.status !== statusFilter) return false;
-      if (sevFilter !== "ALL" && a.severity !== sevFilter) return false;
-      return true;
-    }).sort((a, b) => {
-      const sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-      return sevOrder[a.severity] - sevOrder[b.severity];
-    });
-  }, [filters, statusFilter, sevFilter]);
+  const { data, isLoading } = useAnomalies({
+    status: statusFilter,
+    severity: sevFilter,
+    stateLgd: filters.stateLgd,
+    districtLgd: filters.districtLgd,
+  });
+  const anomalies = data?.anomalies ?? [];
 
-  const stats = useMemo(() => {
-    const total = ANOMALIES.length;
-    const critical = ANOMALIES.filter((a) => a.severity === "CRITICAL" && a.status === "OPEN").length;
-    const open = ANOMALIES.filter((a) => a.status === "OPEN").length;
-    const resolved = ANOMALIES.filter((a) => a.status === "RESOLVED").length;
-    return { total, critical, open, resolved };
-  }, []);
+  const updateMutation = useUpdateAnomaly();
+
+  const stats = {
+    total: anomalies.length,
+    critical: anomalies.filter((a) => a.severity === "CRITICAL" && a.status === "OPEN").length,
+    open: anomalies.filter((a) => a.status === "OPEN").length,
+    resolved: anomalies.filter((a) => a.status === "RESOLVED").length,
+  };
 
   return (
     <div className="space-y-5">
@@ -122,7 +117,14 @@ export function IntelligenceAlertsView() {
 
       {/* Alert list */}
       <div className="space-y-2">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Card bodyClassName="p-8">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+              <span className="ml-2 text-xs text-tertiary">Loading anomalies from /api/anomalies…</span>
+            </div>
+          </Card>
+        ) : anomalies.length === 0 ? (
           <Card bodyClassName="p-8">
             <div className="flex flex-col items-center text-center">
               <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-2" />
@@ -133,10 +135,7 @@ export function IntelligenceAlertsView() {
             </div>
           </Card>
         ) : (
-          filtered.map((a) => {
-            const scheme = SCHEMES.find((s) => s.scheme_id === a.scheme_id);
-            const district = DISTRICTS.find((d) => d.lgd_code === a.lgd_code);
-            const state = STATES.find((s) => s.lgd_code === district?.state_lgd);
+          anomalies.map((a) => {
             const isOpen = expanded === a.anomaly_id;
 
             return (
@@ -187,20 +186,20 @@ export function IntelligenceAlertsView() {
                       <div className="flex items-center gap-3 mt-1.5 text-[10px] text-tertiary">
                         <span className="font-mono">{a.anomaly_id}</span>
                         <span>·</span>
-                        <span>{district?.entity_name}, {state?.entity_name}</span>
+                        <span>{a.district_name}, {a.state_name}</span>
                         <span>·</span>
                         <span className="font-mono">LGD {a.lgd_code}</span>
-                        {scheme && (
+                        {a.scheme_code && (
                           <>
                             <span>·</span>
                             <span
                               className="font-mono px-1.5 py-0.5 rounded"
                               style={{
-                                background: scheme.color + "20",
-                                color: scheme.color,
+                                background: (a.scheme_color ?? "#374151") + "20",
+                                color: a.scheme_color ?? "#9CA3AF",
                               }}
                             >
-                              {scheme.scheme_code}
+                              {a.scheme_code}
                             </span>
                           </>
                         )}
@@ -237,12 +236,26 @@ export function IntelligenceAlertsView() {
                       </div>
                       <div className="flex items-center gap-2">
                         {a.status === "OPEN" && (
-                          <button className="h-8 px-3 rounded-md bg-amber-950 text-amber-300 border border-amber-900/60 hover:bg-amber-900/30 text-xs font-medium transition-colors">
+                          <button
+                            onClick={() => updateMutation.mutate(
+                              { anomalyId: a.anomaly_id, status: "ACKNOWLEDGED" },
+                              { onSuccess: () => toast.success(`Anomaly ${a.anomaly_id} acknowledged`), onError: (err) => toast.error(`Failed: ${err.message}`) }
+                            )}
+                            disabled={updateMutation.isPending}
+                            className="h-8 px-3 rounded-md bg-amber-950 text-amber-300 border border-amber-900/60 hover:bg-amber-900/30 text-xs font-medium transition-colors disabled:opacity-50"
+                          >
                             Acknowledge
                           </button>
                         )}
                         {a.status !== "RESOLVED" && (
-                          <button className="h-8 px-3 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900/60 hover:bg-emerald-900/30 text-xs font-medium transition-colors flex items-center gap-1.5">
+                          <button
+                            onClick={() => updateMutation.mutate(
+                              { anomalyId: a.anomaly_id, status: "RESOLVED" },
+                              { onSuccess: () => toast.success(`Anomaly ${a.anomaly_id} resolved`), onError: (err) => toast.error(`Failed: ${err.message}`) }
+                            )}
+                            disabled={updateMutation.isPending}
+                            className="h-8 px-3 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900/60 hover:bg-emerald-900/30 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                          >
                             <CheckCircle2 className="h-3 w-3" />
                             Mark Resolved
                           </button>

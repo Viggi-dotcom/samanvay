@@ -1,109 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
   GitMerge,
   Download,
   TrendingUp,
   TrendingDown,
   AlertOctagon,
-  MapPin,
   ArrowUpRight,
+  Loader2,
 } from "lucide-react";
 import { useApp, PageHeader, Card } from "@/components/app-shell";
-import {
-  DISTRICTS,
-  STATES,
-  ALLOCATIONS,
-  BENEFICIARIES,
-  SCHEMES,
-  ANOMALIES,
-} from "@/lib/data";
+import { useConvergenceMatrix, type ConvergenceRow } from "@/lib/api/hooks";
+import { fmtCr } from "@/lib/seed-data";
+import { cn } from "@/lib/utils";
 
 export function ConvergenceMatrixView() {
   const filters = useApp((s) => s.filters);
   const openDistrict = useApp((s) => s.openDistrict);
   const setView = useApp((s) => s.setView);
-
-  type CellFlag = "OVERLAP_HIGH" | "GAP" | "MIXED" | "STABLE";
-  interface Row {
-    district: (typeof DISTRICTS)[number];
-    state: string;
-    mgnregaUtil: number;
-    pmkisanUtil: number;
-    pmaygUtil: number;
-    mgnregaBen: number;
-    pmkisanBen: number;
-    pmaygTarget: number;
-    pmaygAchieved: number;
-    flag: CellFlag;
-    deviationScore: number;
-  }
-
-  const rows = useMemo<Row[]>(() => {
-    const dists = DISTRICTS.filter(
-      (d) => !filters.stateLgd || d.state_lgd === filters.stateLgd
-    );
-    return dists
-      .map((d) => {
-        const stateName =
-          STATES.find((s) => s.lgd_code === d.state_lgd)?.entity_name ?? "";
-        function util(schemeId: string) {
-          const a = ALLOCATIONS.filter(
-            (x) => x.lgd_code === d.lgd_code && x.scheme_id === schemeId
-          );
-          const released = a.reduce((s, x) => s + x.released_cr, 0);
-          const utilized = a.reduce((s, x) => s + x.utilized_cr, 0);
-          return released > 0 ? (utilized / released) * 100 : 0;
-        }
-        const mgnregaUtil = util("sch-mgnrega");
-        const pmkisanUtil = util("sch-pmkisan");
-        const pmaygUtil = util("sch-pmayg");
-        const mgnregaBen =
-          BENEFICIARIES.find(
-            (b) => b.lgd_code === d.lgd_code && b.scheme_id === "sch-mgnrega"
-          )?.beneficiaries_total ?? 0;
-        const pmkisanBen =
-          BENEFICIARIES.find(
-            (b) => b.lgd_code === d.lgd_code && b.scheme_id === "sch-pmkisan"
-          )?.beneficiaries_total ?? 0;
-        const pmayg =
-          BENEFICIARIES.find(
-            (b) => b.lgd_code === d.lgd_code && b.scheme_id === "sch-pmayg"
-          ) ?? null;
-
-        // bivariate: high MGNREGA demand (high util) + low PMAY-G completion
-        const pmaygCompletion =
-          pmayg && pmayg.target_units > 0
-            ? (pmayg.achieved_units / pmayg.target_units) * 100
-            : 0;
-        let flag: CellFlag = "STABLE";
-        if (mgnregaUtil >= 70 && pmaygCompletion < 40) flag = "OVERLAP_HIGH";
-        else if (mgnregaUtil < 40 && pmaygCompletion < 40) flag = "GAP";
-        else if (mgnregaUtil >= 70 && pmaygCompletion >= 70) flag = "STABLE";
-        else flag = "MIXED";
-
-        const deviationScore = Math.abs(mgnregaUtil - pmaygCompletion);
-
-        return {
-          district: d,
-          state: stateName,
-          mgnregaUtil,
-          pmkisanUtil,
-          pmaygUtil,
-          mgnregaBen,
-          pmkisanBen,
-          pmaygTarget: pmayg?.target_units ?? 0,
-          pmaygAchieved: pmayg?.achieved_units ?? 0,
-          flag,
-          deviationScore,
-        };
-      })
-      .sort((a, b) => b.deviationScore - a.deviationScore);
-  }, [filters.stateLgd]);
-
-  const overlapCount = rows.filter((r) => r.flag === "OVERLAP_HIGH").length;
-  const gapCount = rows.filter((r) => r.flag === "GAP").length;
+  const { data, isLoading } = useConvergenceMatrix(filters.stateLgd);
+  const rows = data?.rows ?? [];
+  const summary = data?.summary;
 
   function colorForUtil(v: number) {
     if (v < 40) return "#7F1D1D";
@@ -142,45 +59,25 @@ export function ConvergenceMatrixView() {
       {/* Stat strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card bodyClassName="p-3">
-          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">
-            Districts Analyzed
-          </div>
-          <div className="text-xl font-bold text-white font-mono mt-1">
-            {rows.length}
-          </div>
+          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">Districts Analyzed</div>
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-tertiary mt-2" /> : (
+            <div className="text-xl font-bold text-white font-mono mt-1">{summary?.total ?? 0}</div>
+          )}
         </Card>
         <Card bodyClassName="p-3" className="border-red-900/50">
-          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">
-            High-Overlap Districts
-          </div>
-          <div className="text-xl font-bold text-red-300 font-mono mt-1">
-            {overlapCount}
-          </div>
-          <div className="text-[10px] text-tertiary mt-0.5">
-            ≥80% MGNREGA + ≤40% PMAY-G
-          </div>
+          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">High-Overlap Districts</div>
+          <div className="text-xl font-bold text-red-300 font-mono mt-1">{summary?.overlap_high ?? 0}</div>
+          <div className="text-[10px] text-tertiary mt-0.5">≥70% MGNREGA + &lt;40% PMAY-G</div>
         </Card>
         <Card bodyClassName="p-3" className="border-amber-900/40">
-          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">
-            Gap Districts
-          </div>
-          <div className="text-xl font-bold text-amber-300 font-mono mt-1">
-            {gapCount}
-          </div>
-          <div className="text-[10px] text-tertiary mt-0.5">
-            Both schemes underperforming
-          </div>
+          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">Gap Districts</div>
+          <div className="text-xl font-bold text-amber-300 font-mono mt-1">{summary?.gap ?? 0}</div>
+          <div className="text-[10px] text-tertiary mt-0.5">Both schemes underperforming</div>
         </Card>
         <Card bodyClassName="p-3" className="border-emerald-900/40">
-          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">
-            Stable Districts
-          </div>
-          <div className="text-xl font-bold text-emerald-400 font-mono mt-1">
-            {rows.filter((r) => r.flag === "STABLE").length}
-          </div>
-          <div className="text-[10px] text-tertiary mt-0.5">
-            ≥70% on both metrics
-          </div>
+          <div className="text-[10px] uppercase tracking-wider text-secondary-muted">Stable Districts</div>
+          <div className="text-xl font-bold text-emerald-400 font-mono mt-1">{summary?.stable ?? 0}</div>
+          <div className="text-[10px] text-tertiary mt-0.5">≥70% on both metrics</div>
         </Card>
       </div>
 
@@ -194,93 +91,60 @@ export function ConvergenceMatrixView() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-subtle bg-app">
-                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium sticky left-0 bg-app z-10">
-                  District (LGD)
-                </th>
-                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  State
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  MGNREGA Util%
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  PM-KISAN Util%
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  PMAY-G Completion%
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Deviation Score
-                </th>
-                <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Convergence Flag
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Action
-                </th>
+                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium sticky left-0 bg-app z-10">District (LGD)</th>
+                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">State</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">MGNREGA Util%</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">PM-KISAN Util%</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">PMAY-G Completion%</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Deviation Score</th>
+                <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Convergence Flag</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.district.lgd_code}
-                  className="border-b border-subtle hover:bg-surface-hover transition-colors"
-                >
-                  <td className="px-3 py-2.5 sticky left-0 bg-surface-elevated z-10">
-                    <div className="text-white font-medium">
-                      {r.district.entity_name}
-                    </div>
-                    <div className="text-[10px] text-tertiary font-mono">
-                      LGD {r.district.lgd_code}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-secondary-muted">
-                    {r.state}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono">
-                    <span style={{ color: textColor(r.mgnregaUtil) }}>
-                      {r.mgnregaUtil.toFixed(1)}%
-                    </span>
-                    <div
-                      className="h-1 mt-1 rounded-full overflow-hidden"
-                      style={{ background: "#1F2937" }}
-                    >
-                      <div
-                        className="h-full"
-                        style={{
-                          width: `${r.mgnregaUtil}%`,
-                          background: colorForUtil(r.mgnregaUtil),
-                        }}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono">
-                    <span style={{ color: textColor(r.pmkisanUtil) }}>
-                      {r.pmkisanUtil.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono">
-                    <span style={{ color: textColor(r.pmaygUtil) }}>
-                      {r.pmaygUtil.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono text-amber-300">
-                    {r.deviationScore.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <ConvergenceFlag flag={r.flag} />
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    <button
-                      onClick={() => openDistrict(r.district.lgd_code)}
-                      className="text-[11px] text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1"
-                    >
-                      Drill
-                      <ArrowUpRight className="h-3 w-3" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-tertiary text-xs">
+                  <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                  Loading convergence matrix from /api/convergence…
+                </td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-tertiary text-xs">No districts in scope.</td></tr>
+              ) : (
+                rows.map((r: ConvergenceRow) => (
+                  <tr key={r.lgd_code} className="border-b border-subtle hover:bg-surface-hover transition-colors">
+                    <td className="px-3 py-2.5 sticky left-0 bg-surface-elevated z-10">
+                      <div className="text-white font-medium">{r.entity_name}</div>
+                      <div className="text-[10px] text-tertiary font-mono">LGD {r.lgd_code}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-secondary-muted">{r.state_name}</td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      <span style={{ color: textColor(r.mgnrega_util) }}>{r.mgnrega_util.toFixed(1)}%</span>
+                      <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ background: "#1F2937" }}>
+                        <div className="h-full" style={{ width: `${r.mgnrega_util}%`, background: colorForUtil(r.mgnrega_util) }} />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      <span style={{ color: textColor(r.pmkisan_util) }}>{r.pmkisan_util.toFixed(1)}%</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono">
+                      <span style={{ color: textColor(r.pmayg_completion) }}>{r.pmayg_completion.toFixed(1)}%</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono text-amber-300">{r.deviation_score.toFixed(1)}</td>
+                    <td className="px-3 py-2.5 text-center">
+                      <ConvergenceFlag flag={r.flag} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <button
+                        onClick={() => openDistrict(r.lgd_code)}
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1"
+                      >
+                        Drill
+                        <ArrowUpRight className="h-3 w-3" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -291,12 +155,10 @@ export function ConvergenceMatrixView() {
         <Card bodyClassName="p-4" className="border-red-900/40">
           <div className="flex items-center gap-2 mb-2">
             <AlertOctagon className="h-4 w-4 text-red-400" />
-            <span className="text-xs font-semibold text-white">
-              OVERLAP_HIGH
-            </span>
+            <span className="text-xs font-semibold text-white">OVERLAP_HIGH</span>
           </div>
           <p className="text-[11px] text-secondary-muted leading-relaxed">
-            District exhibits ≥80% MGNREGA fund utilization (high wage disbursement) alongside ≤40% PMAY-G milestone completion — indicating administrative blocks where high labor demand is not translating to durable asset creation.
+            District exhibits ≥70% MGNREGA fund utilization (high wage disbursement) alongside ≤40% PMAY-G milestone completion — administrative blocks where high labor demand is not translating to durable asset creation.
           </p>
         </Card>
         <Card bodyClassName="p-4" className="border-amber-900/40">
@@ -330,12 +192,7 @@ function ConvergenceFlag({ flag }: { flag: string }) {
     STABLE: "bg-emerald-950 text-emerald-400 border-emerald-900/60",
   };
   return (
-    <span
-      className={
-        "text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border " +
-        map[flag]
-      }
-    >
+    <span className={cn("text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border", map[flag])}>
       {flag.replace(/_/g, " ")}
     </span>
   );

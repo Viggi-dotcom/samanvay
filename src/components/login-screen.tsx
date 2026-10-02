@@ -1,14 +1,48 @@
 "use client";
 
-import { useState } from "react";
-import { Shield, Lock, Building2, ChevronRight, Globe2 } from "lucide-react";
-import { PERSONAS, type Persona } from "@/lib/data";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { Shield, Lock, Building2, ChevronRight, Globe2, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
+const DEMO_USERS = [
+  { email: "r.kumar@cabsec.gov.in", label: "Central Executive Secretary", org: "Cabinet Secretariat, NITI Aayog", scope: "Pan-India, Cross-Ministry", role: "central_executive" },
+  { email: "v.nair@mord.gov.in", label: "Department Nodal Officer (MoRD)", org: "Joint Secretary / Director", scope: "Ministry-Scoped (MoRD)", role: "dept_nodal" },
+  { email: "anjali.dm-gorakhpur@up.gov.in", label: "District Magistrate — Gorakhpur", org: "District Collector, LGD 463", scope: "District-Specific", role: "district_magistrate" },
+  { email: "p.iyer@cag.gov.in", label: "Auditor / Research Analyst", org: "CAG, Independent Researchers", scope: "Anonymized Pan-India", role: "auditor" },
+  { email: "arjun.nic@gov.in", label: "Super Admin (NIC)", org: "Platform Engineering / NIC Admin", scope: "Global System-wide", role: "super_admin" },
+];
+
 export function LoginScreen() {
-  const login = useApp((s) => s.login);
-  const [selected, setSelected] = useState<Persona | null>(PERSONAS[0]);
+  const { data: session, status } = useSession();
+  const setView = useApp((s) => s.setView);
+  const [selectedEmail, setSelectedEmail] = useState(DEMO_USERS[0].email);
+  const [password, setPassword] = useState("demo123");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      setView("overview");
+    }
+  }, [status, setView]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const result = await signIn("credentials", {
+      email: selectedEmail,
+      password,
+      redirect: false,
+    });
+    setLoading(false);
+    if (result?.error) {
+      setError("Authentication failed — check credentials and try again.");
+    }
+    // On success, the useEffect above will switch view
+  }
 
   return (
     <div className="min-h-screen bg-app flex flex-col lg:flex-row">
@@ -49,26 +83,21 @@ export function LoginScreen() {
             outcomes
           </h1>
           <p className="text-secondary-muted text-base max-w-md leading-relaxed">
-            Integrates MGNREGA, PM-KISAN and PMAY-G implementation data with
-            anomaly detection, traceable NL-to-SQL querying, and row-level
-            security scoped to your LGD jurisdiction.
+            Production-grade platform integrating MGNREGA, PM-KISAN and PMAY-G
+            implementation data with anomaly detection, traceable NL-to-SQL
+            querying, and Row-Level Security scoped to your LGD jurisdiction.
           </p>
 
           <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
             {[
               { icon: Building2, label: "3 Schemes", sub: "MGNREGA · PM-KISAN · PMAY-G" },
-              { icon: Globe2, label: "742 LGD Districts", sub: "Canonical spatial anchor" },
-              { icon: Lock, label: "JWT-scoped RLS", sub: "Role + LGD claims enforced" },
+              { icon: Globe2, label: "24 States", sub: "66 LGD districts ingested" },
+              { icon: Lock, label: "JWT-scoped RLS", sub: "Server-side enforced" },
             ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-lg border border-subtle bg-surface-elevated p-3"
-              >
+              <div key={s.label} className="rounded-lg border border-subtle bg-surface-elevated p-3">
                 <s.icon className="h-4 w-4 text-cyan-400 mb-2" />
                 <div className="text-xs font-semibold text-white">{s.label}</div>
-                <div className="text-[10px] text-secondary-muted leading-tight mt-0.5">
-                  {s.sub}
-                </div>
+                <div className="text-[10px] text-secondary-muted leading-tight mt-0.5">{s.sub}</div>
               </div>
             ))}
           </div>
@@ -80,91 +109,104 @@ export function LoginScreen() {
         </div>
       </div>
 
-      {/* Right: Role picker / auth */}
+      {/* Right: Auth form */}
       <div className="lg:w-1/2 bg-surface-elevated border-l border-subtle flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-xl">
+        <form onSubmit={handleSubmit} className="w-full max-w-xl">
           <div className="mb-6">
             <div className="text-xs uppercase tracking-widest text-cyan-400 mb-2">
               Multi-factor Government SSO
             </div>
             <h2 className="text-xl font-semibold text-white mb-1">
-              Select persona to simulate session
+              Sign in to your session
             </h2>
             <p className="text-sm text-secondary-muted">
-              In production, login flows through ID.gov.in + Supabase GoTrue
-              with RBAC JWT claims. Choose a role below to preview the
-              role-scoped experience.
+              Authenticated via NextAuth credentials provider → JWT with role +
+              LGD claims. Pick a demo user below.
             </p>
           </div>
 
-          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-            {PERSONAS.map((p) => (
-              <button
-                key={p.role}
-                onClick={() => setSelected(p)}
-                className={cn(
-                  "w-full text-left rounded-lg border p-3 transition-all",
-                  selected?.role === p.role
-                    ? "border-blue-500 bg-blue-950/30 ring-1 ring-blue-500"
-                    : "border-subtle bg-app hover:border-blue-600/50 hover:bg-surface-hover"
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "h-9 w-9 shrink-0 rounded-md flex items-center justify-center text-xs font-mono font-semibold",
-                      selected?.role === p.role
-                        ? "bg-blue-600 text-white"
-                        : "bg-surface-hover text-secondary-muted"
-                    )}
-                  >
-                    {p.role.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">
-                        {p.label}
-                      </span>
-                      {p.assignedLgdCode && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 border border-blue-800/50">
-                          LGD {p.assignedLgdCode}
-                        </span>
-                      )}
+          {/* Demo user picker */}
+          <div className="mb-4">
+            <label className="text-[10px] uppercase tracking-wider text-tertiary mb-1.5 block">
+              Select demo persona
+            </label>
+            <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+              {DEMO_USERS.map((u) => (
+                <button
+                  key={u.email}
+                  type="button"
+                  onClick={() => setSelectedEmail(u.email)}
+                  className={cn(
+                    "w-full text-left rounded-lg border p-2.5 transition-all",
+                    selectedEmail === u.email
+                      ? "border-blue-500 bg-blue-950/30 ring-1 ring-blue-500"
+                      : "border-subtle bg-app hover:border-blue-600/50 hover:bg-surface-hover"
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn(
+                      "h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[10px] font-mono font-semibold",
+                      selectedEmail === u.email ? "bg-blue-600 text-white" : "bg-surface-hover text-secondary-muted"
+                    )}>
+                      {u.role.slice(0, 2).toUpperCase()}
                     </div>
-                    <div className="text-xs text-secondary-muted mt-0.5">
-                      {p.targetUser}
-                    </div>
-                    <div className="text-[11px] text-tertiary mt-1 line-clamp-1">
-                      {p.dataAccessScope}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-white">{u.label}</div>
+                      <div className="text-[11px] text-secondary-muted">{u.org}</div>
+                      <div className="text-[10px] text-tertiary font-mono mt-0.5">{u.email}</div>
                     </div>
                   </div>
-                  <ChevronRight
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-colors",
-                      selected?.role === p.role
-                        ? "text-blue-400"
-                        : "text-tertiary"
-                    )}
-                  />
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Password */}
+          <div className="mb-4">
+            <label className="text-[10px] uppercase tracking-wider text-tertiary mb-1.5 block">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-md bg-app border border-subtle text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
+              autoComplete="current-password"
+            />
+            <div className="text-[10px] text-tertiary mt-1">Demo password: <code className="font-mono">demo123</code></div>
+          </div>
+
+          {error && (
+            <div className="mb-4 rounded-md bg-red-950/40 border border-red-900/60 p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-red-300">{error}</div>
+            </div>
+          )}
+
           <button
-            onClick={() => selected && login(selected)}
-            disabled={!selected}
-            className="mt-6 w-full h-11 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Authenticate &amp; Enter Platform
-            <ChevronRight className="h-4 w-4" />
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Authenticating...
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4" />
+                Sign in via Government SSO
+                <ChevronRight className="h-4 w-4" />
+              </>
+            )}
           </button>
 
           <div className="mt-4 flex items-center justify-between text-[11px] text-tertiary">
-            <span>Session secured by Supabase Auth · GoTrue RBAC JWT</span>
-            <span className="font-mono">v0.9.0-mvp</span>
+            <span>Session secured by NextAuth · JWT 8h · RLS server-side</span>
+            <span className="font-mono">v1.0.0-prod</span>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

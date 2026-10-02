@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession, signOut } from "next-auth/react";
 import { useApp } from "@/lib/store";
 import { LoginScreen } from "@/components/login-screen";
 import { AppShell } from "@/components/app-shell";
@@ -19,12 +20,21 @@ import {
   AdminPipelinesView,
   AdminUsersView,
 } from "@/components/views/admin";
+import { Loader2 } from "lucide-react";
 
 export default function Page() {
-  const isAuthenticated = useApp((s) => s.isAuthenticated);
+  const { data: session, status } = useSession();
   const view = useApp((s) => s.view);
 
-  if (!isAuthenticated) {
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-app flex items-center justify-center">
+        <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
     return <LoginScreen />;
   }
 
@@ -45,3 +55,6 @@ export default function Page() {
     </AppShell>
   );
 }
+
+// Re-export signOut so the Header can use it
+export { signOut };

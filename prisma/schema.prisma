@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Samanvay Intelligence — Production Prisma Schema
+// Mirrors the canonical PostgreSQL data models from Document 4,
+// adapted for SQLite (no JSONB / native RLS — RBAC enforced server-side in /lib/rbac.ts).
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +11,150 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ---------- Dimensions ----------
+
+model Ministry {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. GOI_MORD
+  name        String
+  nodalEmail  String
+  createdAt   DateTime @default(now())
+  schemes     Scheme[]
+  users       User[]
 }
 
-model Post {
+model Scheme {
+  id          String   @id @default(cuid())
+  ministryId  String
+  ministry    Ministry @relation(fields: [ministryId], references: [id])
+  code        String   @unique // MGNREGA, PM_KISAN, PMAY_G
+  name        String
+  type        String   // CORE_OF_CORE | CORE_SCHEME | CENTRAL_SECTOR
+  launchDate  DateTime?
+  isActive    Boolean  @default(true)
+  description String
+  color       String
+  keyMetrics  String   // JSON-stringified [{label, key}]
+  allocations Allocation[]
+  beneficiaries Beneficiary[]
+  anomalies   Anomaly[]
+}
+
+model LgdGeography {
+  lgdCode     Int     @id // canonical LGD numeric code
+  level       String  // STATE | DISTRICT | BLOCK
+  name        String
+  parentLgd   Int?
+  stateLgd    Int
+  stateName   String?
+  // Choropleth positioning helpers (simplified SVG anchors)
+  posX        Float?
+  posY        Float?
+  parent      LgdGeography? @relation("LgdHierarchy", fields: [parentLgd], references: [lgdCode])
+  children    LgdGeography[] @relation("LgdHierarchy")
+  allocations Allocation[]
+  beneficiaries Beneficiary[]
+  anomalies   Anomaly[]
+}
+
+// ---------- Facts ----------
+
+model Allocation {
+  id             String   @id @default(cuid())
+  schemeId       String
+  scheme         Scheme   @relation(fields: [schemeId], references: [id])
+  lgdCode        Int
+  geography      LgdGeography @relation(fields: [lgdCode], references: [lgdCode])
+  financialYear  String   // "2025-2026"
+  quarter        Int      // 1..4
+  allocatedCr    Float
+  releasedCr     Float
+  utilizedCr     Float
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  @@unique([schemeId, lgdCode, financialYear, quarter])
+}
+
+model Beneficiary {
+  id                String   @id @default(cuid())
+  schemeId          String
+  scheme            Scheme   @relation(fields: [schemeId], references: [id])
+  lgdCode           Int
+  geography         LgdGeography @relation(fields: [lgdCode], references: [lgdCode])
+  reportingMonth    DateTime
+  targetUnits       Int
+  achievedUnits     Int
+  beneficiariesTotal Int
+  beneficiariesWomen Int
+  beneficiariesScSt Int
+
+  @@unique([schemeId, lgdCode, reportingMonth])
+}
+
+model Anomaly {
+  id              String   @id @default(cuid())
+  schemeId        String?
+  scheme          Scheme?  @relation(fields: [schemeId], references: [id])
+  lgdCode         Int
+  geography       LgdGeography @relation(fields: [lgdCode], references: [lgdCode])
+  anomalyType     String   // UNDERUTILIZATION | SCHEME_OVERLAP_GAP | STALLING | REPORTING_DELAY | DIVERGENCE
+  severity        String   // LOW | MEDIUM | HIGH | CRITICAL
+  zScore          Float
+  evidencePayload String   // JSON-stringified
+  status          String   @default("OPEN") // OPEN | ACKNOWLEDGED | RESOLVED
+  description     String
+  createdAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ---------- Auth & Admin ----------
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  passwordHash    String   // plaintext for demo (would be bcrypt in real prod)
+  role            String   // super_admin | central_executive | dept_nodal | district_magistrate | auditor
+  ministryId      String?
+  ministry        Ministry? @relation(fields: [ministryId], references: [id])
+  assignedLgdCode Int?
+  status          String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  lastActive      DateTime?
+  createdAt       DateTime @default(now())
+  auditLogs       AuditLog[]
+  nlQueryLogs     NlQueryLog[]
+}
+
+model AuditLog {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  actor     String   // email or system
+  action    String   // NL_QUERY_EXEC | ANOMALY_ACK | EXPORT_CSV | PIPELINE_RETRY | USER_PROVISION | LOGIN | LOGOUT
+  target    String
+  ts        DateTime @default(now())
+}
+
+model PipelineRun {
+  id              String   @id @default(cuid())
+  scheme          String   // MGNREGA | PM_KISAN | PMAY_G | CROSS_SCHEME
+  source          String
+  schedule        String
+  status          String   // SUCCESS | PARTIAL | FAILED
+  recordsIngested Int
+  lastRun         DateTime
+  durationSec     Int
+  createdAt       DateTime @default(now())
+}
+
+model NlQueryLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  prompt          String
+  generatedSql     String?
+  executionMs     Int?
+  status          String   // SUCCESS | ERROR | BLOCKED
+  role            String
+  createdAt       DateTime @default(now())
 }

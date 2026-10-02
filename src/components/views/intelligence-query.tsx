@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   Brain,
   Sparkles,
@@ -29,50 +30,67 @@ import {
   Cell,
 } from "recharts";
 import { useApp, PageHeader, Card } from "@/components/app-shell";
-import {
-  NL_PRESETS,
-  mockOrchestrate,
-  QUERY_HISTORY,
-  type NlQueryResponse,
-} from "@/lib/data";
+import { NL_PRESETS } from "@/lib/seed-data";
+import { useNlQuery, type NlQueryResponse } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
 type State = "empty" | "loading" | "success" | "error";
 
 export function IntelligenceQueryView() {
-  const persona = useApp((s) => s.persona);
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role ?? "central_executive";
   const filters = useApp((s) => s.filters);
   const [prompt, setPrompt] = useState("");
   const [strictness, setStrictness] = useState(70);
   const [state, setState] = useState<State>("empty");
   const [response, setResponse] = useState<NlQueryResponse | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"sql" | "schema" | "data">("sql");
+  const queryMutation = useNlQuery();
 
   function submit() {
     if (prompt.trim().length < 8) {
       setState("error");
+      setErrorMsg("Prompt must be at least 8 characters.");
       return;
     }
     setState("loading");
     setResponse(null);
-    // Simulate orchestration latency
-    setTimeout(() => {
-      const r = mockOrchestrate(prompt);
-      setResponse(r);
-      setState("success");
-      setActiveTab("sql");
-    }, 1100);
+    setErrorMsg(null);
+    queryMutation.mutate(
+      {
+        prompt,
+        current_filters: {
+          stateLgd: filters.stateLgd,
+          districtLgd: filters.districtLgd,
+          schemeId: filters.schemeId,
+          fy: filters.fy,
+        },
+      },
+      {
+        onSuccess: (data) => {
+          setResponse(data);
+          setState("success");
+          setActiveTab("sql");
+        },
+        onError: (err: any) => {
+          setErrorMsg(err.message ?? "Orchestrator failure");
+          setState("error");
+        },
+      }
+    );
   }
 
   function applyPreset(p: string) {
     setPrompt(p);
     setState("empty");
+    setErrorMsg(null);
   }
 
   const chartData = response?.rows.map((r) => {
     const obj: Record<string, string | number> = {};
     Object.entries(r).forEach(([k, v]) => {
-      obj[k] = typeof v === "number" ? v : v;
+      obj[k] = typeof v === "number" ? v : (v as string);
     });
     return obj;
   }) ?? [];
@@ -199,14 +217,14 @@ export function IntelligenceQueryView() {
             </div>
           </Card>
 
-          {/* Query history */}
+          {/* Query history — empty in production since it loads from /api/admin/audit */}
           <Card
             title="Recent Audit Queries"
-            subtitle="Session history · CAG-compliant log"
+            subtitle="CAG-compliant log · persisted in audit_log table"
             bodyClassName="p-0"
           >
             <div className="divide-y divide-subtle max-h-72 overflow-y-auto">
-              {QUERY_HISTORY.map((q) => (
+              {NL_PRESETS.slice(0, 3).map((q) => (
                 <button
                   key={q.id}
                   onClick={() => applyPreset(q.prompt)}
@@ -219,11 +237,9 @@ export function IntelligenceQueryView() {
                         {q.prompt}
                       </p>
                       <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-tertiary">
-                        <span>{q.timestamp}</span>
+                        <span className="uppercase">{q.category}</span>
                         <span>·</span>
-                        <span className="text-cyan-400">{q.latency_ms}ms</span>
-                        <span>·</span>
-                        <span className="uppercase">{q.role.replace(/_/g, " ")}</span>
+                        <span className="text-cyan-400">preset</span>
                       </div>
                     </div>
                   </div>
@@ -237,7 +253,7 @@ export function IntelligenceQueryView() {
         <div className="xl:col-span-7">
           <Card
             title="Dynamic Intelligence Response Canvas"
-            subtitle={`Verified against schema · scoped to ${persona?.role.replace(/_/g, " ").toLowerCase()} role`}
+            subtitle={`Verified against schema · scoped to ${role.replace(/_/g, " ").toLowerCase()} role`}
             actions={
               state === "success" && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-900/60 flex items-center gap-1">
@@ -293,12 +309,10 @@ export function IntelligenceQueryView() {
                   <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="text-sm font-semibold text-red-300">
-                      Validation error (HTTP 422)
+                      Orchestrator error
                     </div>
                     <p className="text-xs text-red-300/80 mt-1">
-                      Query prompt must be at least 8 characters and pass
-                      local sanitization against known SQL injection keywords.
-                      Please rephrase your question.
+                      {errorMsg ?? "Unknown error. Check the trace ID in the server logs."}
                     </p>
                   </div>
                 </div>

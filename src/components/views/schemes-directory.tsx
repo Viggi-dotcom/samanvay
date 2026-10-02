@@ -7,18 +7,17 @@ import {
   CheckCircle2,
   XCircle,
   Mail,
+  Loader2,
 } from "lucide-react";
 import { useApp, PageHeader, Card } from "@/components/app-shell";
-import {
-  SCHEMES,
-  MINISTRIES,
-  aggregateKpis,
-  fmtCr,
-  fmtNum,
-} from "@/lib/data";
+import { useSchemes } from "@/lib/api/hooks";
+import { fmtCr, fmtNum } from "@/lib/seed-data";
 
 export function SchemesDirectoryView() {
   const openScheme = useApp((s) => s.openScheme);
+  const filters = useApp((s) => s.filters);
+  const { data, isLoading } = useSchemes({ stateLgd: filters.stateLgd, districtLgd: filters.districtLgd, fy: filters.fy });
+  const schemes = data?.schemes ?? [];
 
   return (
     <div className="space-y-5">
@@ -28,15 +27,20 @@ export function SchemesDirectoryView() {
         icon={Building2}
         badge={
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-cyan-300 border border-blue-900/60">
-            {SCHEMES.length} ACTIVE SCHEMES
+            {schemes.length} ACTIVE SCHEMES
           </span>
         }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {SCHEMES.map((s) => {
-          const ministry = MINISTRIES.find((m) => m.ministry_id === s.ministry_id);
-          const k = aggregateKpis({ schemeId: s.scheme_id, fy: "2025-2026" });
+        {isLoading ? (
+          <div className="col-span-full p-12 text-center">
+            <Loader2 className="h-5 w-5 text-blue-400 animate-spin inline-block" />
+            <span className="ml-2 text-xs text-tertiary">Loading schemes from /api/schemes…</span>
+          </div>
+        ) : (
+          schemes.map((s) => {
+          const k = s.metrics;
           return (
             <Card key={s.scheme_id} bodyClassName="p-0" className="overflow-hidden">
               <div className="h-1" style={{ background: s.color }} />
@@ -83,16 +87,16 @@ export function SchemesDirectoryView() {
                         Nodal Ministry
                       </div>
                       <div className="text-xs font-medium text-white mt-0.5">
-                        {ministry?.ministry_name}
+                        {s.ministry?.ministry_name ?? "—"}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-tertiary flex items-center gap-1 justify-end">
                         <Mail className="h-3 w-3" />
-                        {ministry?.ministry_code}
+                        {s.ministry?.ministry_code ?? "—"}
                       </div>
                       <div className="text-[10px] text-tertiary font-mono mt-0.5">
-                        {ministry?.nodal_email}
+                        {s.ministry?.nodal_email ?? "—"}
                       </div>
                     </div>
                   </div>
@@ -160,7 +164,8 @@ export function SchemesDirectoryView() {
               </div>
             </Card>
           );
-        })}
+        })
+        )}
       </div>
     </div>
   );

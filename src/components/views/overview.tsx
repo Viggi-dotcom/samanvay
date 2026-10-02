@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   IndianRupee,
   Users,
@@ -12,20 +11,23 @@ import {
   Zap,
   GitMerge,
   MapPin,
+  Loader2,
 } from "lucide-react";
-import { useApp, PageHeader, KpiCard, Card, SeverityBadge } from "@/components/app-shell";
+import { useApp, PageHeader, KpiCard, Card } from "@/components/app-shell";
 import { Choropleth } from "@/components/choropleth";
 import {
-  aggregateKpis,
-  ANOMALIES,
   AI_INSIGHTS,
-  DISTRICTS,
   STATES,
-  ALLOCATIONS,
-  SCHEMES,
   fmtCr,
   fmtNum,
-} from "@/lib/data";
+} from "@/lib/seed-data";
+import {
+  useKpis,
+  useSchemes,
+  useGeoNational,
+  type Kpis,
+  type SchemeSummary,
+} from "@/lib/api/hooks";
 
 export function OverviewView() {
   const filters = useApp((s) => s.filters);
@@ -33,34 +35,20 @@ export function OverviewView() {
   const setView = useApp((s) => s.setView);
   const openScheme = useApp((s) => s.openScheme);
 
-  const kpis = useMemo(
-    () => aggregateKpis({ ...filters, fy: filters.fy }),
-    [filters]
-  );
+  const { data: kpis, isLoading: kpisLoading } = useKpis(filters);
+  const { data: schemesData } = useSchemes({ stateLgd: filters.stateLgd, districtLgd: filters.districtLgd, fy: filters.fy });
+  const schemes = schemesData?.schemes ?? [];
 
-  // Top divergent districts (utilization < state median)
-  const divergent = useMemo(() => {
-    const rows = DISTRICTS.map((d) => {
-      const allocs = ALLOCATIONS.filter(
-        (a) =>
-          a.lgd_code === d.lgd_code &&
-          (!filters.schemeId || a.scheme_id === filters.schemeId)
-      );
-      const released = allocs.reduce((s, a) => s + a.released_cr, 0);
-      const utilized = allocs.reduce((s, a) => s + a.utilized_cr, 0);
-      const util = released > 0 ? (utilized / released) * 100 : 0;
-      const allocated = allocs.reduce((s, a) => s + a.allocated_cr, 0);
-      return { ...d, util, released, allocated, utilized };
-    });
-    return rows
-      .filter((r) => r.released > 0)
-      .sort((a, b) => a.util - b.util)
-      .slice(0, 6);
-  }, [filters.schemeId]);
+  // Divergent districts (top 6 worst utilization from geo-national)
+  const { data: geoData } = useGeoNational(filters.schemeId);
+  const divergent = (geoData?.states ?? [])
+    .flatMap((s) => s) // we only have state-level; will refine later if needed
+    .sort((a, b) => a.metrics.util - b.metrics.util)
+    .slice(0, 6);
 
   const scopeLabel =
     filters.districtLgd
-      ? DISTRICTS.find((d) => d.lgd_code === filters.districtLgd)?.entity_name
+      ? "District-scoped"
       : filters.stateLgd
         ? STATES.find((s) => s.lgd_code === filters.stateLgd)?.entity_name
         : "Pan-India";
@@ -89,43 +77,52 @@ export function OverviewView() {
 
       {/* KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <KpiCard
-          label="Total Outlay vs. Expenditure"
-          value={fmtCr(kpis.utilized)}
-          sub={`of ${fmtCr(kpis.released)} released · ${fmtCr(kpis.allocated)} allocated`}
-          icon={IndianRupee}
-          trend={{
-            dir: kpis.utilizationPct >= 70 ? "up" : "down",
-            value: `${kpis.utilizationPct.toFixed(1)}% util`,
-            good: kpis.utilizationPct >= 70,
-          }}
-        />
-        <KpiCard
-          label="Active Beneficiary Footprint"
-          value={fmtNum(kpis.beneficiaries)}
-          sub={`Women ${kpis.womenPct.toFixed(0)}% · SC/ST ${kpis.scStPct.toFixed(0)}%`}
-          icon={Users}
-          trend={{ dir: "up", value: "+8.2% QoQ", good: true }}
-        />
-        <KpiCard
-          label="Cross-Scheme Interventions"
-          value={fmtNum(kpis.activeWorks)}
-          sub={`${kpis.achievementPct.toFixed(1)}% of ${fmtNum(kpis.targetUnits)} targets`}
-          icon={Activity}
-          trend={{
-            dir: kpis.achievementPct >= 70 ? "up" : "down",
-            value: `${kpis.achievementPct >= 70 ? "+" : "−"}${Math.abs(kpis.achievementPct - 70).toFixed(1)}%`,
-            good: kpis.achievementPct >= 70,
-          }}
-        />
-        <KpiCard
-          label="Critical Anomalies"
-          value={kpis.criticalAnomalies}
-          sub={`${kpis.totalAnomalies} total open anomalies`}
-          icon={AlertTriangle}
-          alert={kpis.criticalAnomalies > 0 ? "critical" : "success"}
-          onClick={() => setView("intelligence-alerts")}
-        />
+        {kpisLoading || !kpis ? (
+          <div className="col-span-full h-24 rounded-lg border border-subtle bg-surface-elevated flex items-center justify-center">
+            <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+            <span className="ml-2 text-xs text-tertiary">Aggregating KPIs from fact_scheme_allocations…</span>
+          </div>
+        ) : (
+          <>
+            <KpiCard
+              label="Total Outlay vs. Expenditure"
+              value={fmtCr(kpis.utilized)}
+              sub={`of ${fmtCr(kpis.released)} released · ${fmtCr(kpis.allocated)} allocated`}
+              icon={IndianRupee}
+              trend={{
+                dir: kpis.utilizationPct >= 70 ? "up" : "down",
+                value: `${kpis.utilizationPct.toFixed(1)}% util`,
+                good: kpis.utilizationPct >= 70,
+              }}
+            />
+            <KpiCard
+              label="Active Beneficiary Footprint"
+              value={fmtNum(kpis.beneficiaries)}
+              sub={`Women ${kpis.womenPct.toFixed(0)}% · SC/ST ${kpis.scStPct.toFixed(0)}%`}
+              icon={Users}
+              trend={{ dir: "up", value: "+8.2% QoQ", good: true }}
+            />
+            <KpiCard
+              label="Cross-Scheme Interventions"
+              value={fmtNum(kpis.activeWorks)}
+              sub={`${kpis.achievementPct.toFixed(1)}% of ${fmtNum(kpis.targetUnits)} targets`}
+              icon={Activity}
+              trend={{
+                dir: kpis.achievementPct >= 70 ? "up" : "down",
+                value: `${kpis.achievementPct >= 70 ? "+" : "−"}${Math.abs(kpis.achievementPct - 70).toFixed(1)}%`,
+                good: kpis.achievementPct >= 70,
+              }}
+            />
+            <KpiCard
+              label="Critical Anomalies"
+              value={kpis.criticalAnomalies}
+              sub={`${kpis.totalAnomalies} total open anomalies`}
+              icon={AlertTriangle}
+              alert={kpis.criticalAnomalies > 0 ? "critical" : "success"}
+              onClick={() => setView("intelligence-alerts")}
+            />
+          </>
+        )}
       </div>
 
       {/* Geographic + Divergence panel */}
@@ -137,14 +134,15 @@ export function OverviewView() {
             actions={
               <div className="flex items-center gap-1 text-[10px] text-tertiary">
                 <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                GIS vector tiles · Mapbox GL · LGD-anchored
+                GIS vector tiles · LGD-anchored
               </div>
             }
             bodyClassName="p-0"
           >
             <Choropleth
-              stateLgd={filters.stateLgd}
-              schemeId={filters.schemeId}
+              states={geoData?.states}
+              schemeCode={filters.schemeId ? schemes.find((s) => s.scheme_id === filters.schemeId)?.scheme_code : undefined}
+              loading={kpisLoading}
               onSelectState={(lgd) => openState(lgd)}
               height={520}
             />
@@ -153,19 +151,20 @@ export function OverviewView() {
 
         <div className="xl:col-span-4">
           <Card
-            title="Top Divergent Districts"
+            title="Top Divergent States"
             subtitle="Fund flow high · milestone lagging"
             bodyClassName="p-0"
           >
             <div className="divide-y divide-subtle">
-              {divergent.map((d, i) => {
-                const stateName = STATES.find(
-                  (s) => s.lgd_code === d.state_lgd
-                )?.entity_name;
-                return (
+              {divergent.length === 0 ? (
+                <div className="px-4 py-8 text-center text-xs text-tertiary">
+                  Loading divergent states…
+                </div>
+              ) : (
+                divergent.map((s, i) => (
                   <button
-                    key={d.lgd_code}
-                    onClick={() => openState(d.state_lgd)}
+                    key={s.lgd_code}
+                    onClick={() => openState(s.lgd_code)}
                     className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors flex items-center gap-3"
                   >
                     <div className="text-[10px] font-mono text-tertiary w-4">
@@ -173,25 +172,25 @@ export function OverviewView() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">
-                        {d.entity_name}
+                        {s.entity_name}
                       </div>
                       <div className="text-[11px] text-tertiary truncate flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {stateName}
+                        State LGD {s.lgd_code}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-mono font-bold text-red-300">
-                        {d.util.toFixed(1)}%
+                        {s.metrics.util.toFixed(1)}%
                       </div>
                       <div className="text-[10px] text-tertiary">
-                        ₹{d.released.toFixed(0)} Cr
+                        {fmtCr(s.metrics.released)}
                       </div>
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 text-tertiary shrink-0" />
                   </button>
-                );
-              })}
+                ))
+              )}
             </div>
             <div className="p-3 border-t border-subtle">
               <button
@@ -231,11 +230,7 @@ export function OverviewView() {
           {AI_INSIGHTS.map((insight) => (
             <Card
               key={insight.id}
-              className={
-                insight.severity === "critical"
-                  ? "border-red-900/50"
-                  : "border-amber-900/40"
-              }
+              className={insight.severity === "critical" ? "border-red-900/50" : "border-amber-900/40"}
               bodyClassName="p-4"
             >
               <div className="flex items-start gap-2 mb-2">
@@ -289,79 +284,59 @@ export function OverviewView() {
       </div>
 
       {/* Scheme snapshot strip */}
-      <Card title="Scheme Snapshot" subtitle="Active ingestion pipelines" bodyClassName="p-0">
+      <Card title="Scheme Snapshot" subtitle="Live from /api/schemes" bodyClassName="p-0">
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-subtle">
-          {SCHEMES.map((s) => {
-            const sk = aggregateKpis({
-              schemeId: s.scheme_id,
-              stateLgd: filters.stateLgd,
-              districtLgd: filters.districtLgd,
-              fy: filters.fy,
-            });
-            return (
+          {schemes.length === 0 ? (
+            <div className="col-span-full p-6 text-center text-xs text-tertiary">
+              <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+              Loading schemes…
+            </div>
+          ) : (
+            schemes.map((s: SchemeSummary) => (
               <button
                 key={s.scheme_id}
                 onClick={() => openScheme(s.scheme_id)}
                 className="text-left p-4 hover:bg-surface-hover transition-colors"
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ background: s.color }}
-                  />
-                  <span className="text-sm font-semibold text-white">
-                    {s.scheme_code}
-                  </span>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
+                  <span className="text-sm font-semibold text-white">{s.scheme_code}</span>
                   <span className="text-[10px] font-mono text-tertiary ml-auto">
                     {s.scheme_type.replace(/_/g, " ")}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <div className="text-tertiary text-[10px] uppercase">
-                      Released
-                    </div>
-                    <div className="text-white font-mono font-semibold">
-                      {fmtCr(sk.released)}
-                    </div>
+                    <div className="text-tertiary text-[10px] uppercase">Released</div>
+                    <div className="text-white font-mono font-semibold">{fmtCr(s.metrics.released)}</div>
                   </div>
                   <div>
-                    <div className="text-tertiary text-[10px] uppercase">
-                      Utilized
-                    </div>
-                    <div className="text-white font-mono font-semibold">
-                      {fmtCr(sk.utilized)}
-                    </div>
+                    <div className="text-tertiary text-[10px] uppercase">Utilized</div>
+                    <div className="text-white font-mono font-semibold">{fmtCr(s.metrics.utilized)}</div>
                   </div>
                   <div>
-                    <div className="text-tertiary text-[10px] uppercase">
-                      Beneficiaries
-                    </div>
-                    <div className="text-white font-mono font-semibold">
-                      {fmtNum(sk.beneficiaries)}
-                    </div>
+                    <div className="text-tertiary text-[10px] uppercase">Beneficiaries</div>
+                    <div className="text-white font-mono font-semibold">{fmtNum(s.metrics.beneficiaries)}</div>
                   </div>
                   <div>
-                    <div className="text-tertiary text-[10px] uppercase">
-                      Util %
-                    </div>
+                    <div className="text-tertiary text-[10px] uppercase">Util %</div>
                     <div
                       className={
                         "font-mono font-semibold " +
-                        (sk.utilizationPct >= 70
+                        (s.metrics.utilizationPct >= 70
                           ? "text-emerald-400"
-                          : sk.utilizationPct >= 50
+                          : s.metrics.utilizationPct >= 50
                             ? "text-amber-300"
                             : "text-red-300")
                       }
                     >
-                      {sk.utilizationPct.toFixed(1)}%
+                      {s.metrics.utilizationPct.toFixed(1)}%
                     </div>
                   </div>
                 </div>
               </button>
-            );
-          })}
+            ))
+          )}
         </div>
       </Card>
     </div>

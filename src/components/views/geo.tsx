@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   Globe2,
   MapPin,
@@ -12,20 +11,19 @@ import {
   Layers,
   Activity,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { useApp, PageHeader, Card, KpiCard } from "@/components/app-shell";
 import { Choropleth } from "@/components/choropleth";
 import {
-  STATES,
-  DISTRICTS,
-  ALLOCATIONS,
-  BENEFICIARIES,
-  ANOMALIES,
-  SCHEMES,
-  aggregateKpis,
-  fmtCr,
-  fmtNum,
-} from "@/lib/data";
+  useKpis,
+  useSchemes,
+  useGeoNational,
+  useGeoState,
+  useGeoDistricts,
+  useAnomalies,
+} from "@/lib/api/hooks";
+import { STATES, fmtCr, fmtNum } from "@/lib/seed-data";
 import { cn } from "@/lib/utils";
 
 export function GeoNationalView() {
@@ -33,20 +31,10 @@ export function GeoNationalView() {
   const openState = useApp((s) => s.openState);
   const setView = useApp((s) => s.setView);
   const setFilter = useApp((s) => s.setFilter);
+  const { data, isLoading } = useGeoNational(filters.schemeId);
+  const states = data?.states ?? [];
 
-  const stateRows = useMemo(() => {
-    return STATES.map((s) => {
-      const dists = DISTRICTS.filter((d) => d.state_lgd === s.lgd_code);
-      const k = aggregateKpis({
-        stateLgd: s.lgd_code,
-        schemeId: filters.schemeId,
-        fy: filters.fy,
-      });
-      return { state: s, districtCount: dists.length, ...k };
-    })
-      .filter((r) => r.districtCount > 0)
-      .sort((a, b) => b.utilizationPct - a.utilizationPct);
-  }, [filters]);
+  const stateRows = [...states].sort((a, b) => b.metrics.util - a.metrics.util);
 
   return (
     <div className="space-y-5">
@@ -56,7 +44,7 @@ export function GeoNationalView() {
         icon={Globe2}
         badge={
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-cyan-300 border border-blue-900/60">
-            28 STATES
+            {states.length} STATES
           </span>
         }
       />
@@ -75,7 +63,9 @@ export function GeoNationalView() {
             bodyClassName="p-0"
           >
             <Choropleth
-              schemeId={filters.schemeId}
+              states={states}
+              schemeCode={filters.schemeId}
+              loading={isLoading}
               onSelectState={(lgd) => {
                 setFilter("stateLgd", lgd);
                 openState(lgd);
@@ -92,43 +82,36 @@ export function GeoNationalView() {
             bodyClassName="p-0 max-h-[600px] overflow-y-auto"
           >
             <div className="divide-y divide-subtle">
-              {stateRows.map((r, i) => (
-                <button
-                  key={r.state.lgd_code}
-                  onClick={() => openState(r.state.lgd_code)}
-                  className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors flex items-center gap-3"
-                >
-                  <span className="text-[10px] font-mono text-tertiary w-5 text-right">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">
-                      {r.state.entity_name}
+              {stateRows.length === 0 ? (
+                <div className="px-4 py-8 text-center text-xs text-tertiary">
+                  <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                  Loading states…
+                </div>
+              ) : (
+                stateRows.map((r, i) => (
+                  <button
+                    key={r.lgd_code}
+                    onClick={() => openState(r.lgd_code)}
+                    className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors flex items-center gap-3"
+                  >
+                    <span className="text-[10px] font-mono text-tertiary w-5 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-white truncate">{r.entity_name}</div>
+                      <div className="text-[10px] text-tertiary font-mono">LGD {r.lgd_code}</div>
                     </div>
-                    <div className="text-[10px] text-tertiary font-mono">
-                      LGD {r.state.lgd_code} · {r.districtCount} districts
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div
-                      className={cn(
+                    <div className="text-right shrink-0">
+                      <div className={cn(
                         "text-sm font-mono font-bold",
-                        r.utilizationPct >= 70
-                          ? "text-emerald-400"
-                          : r.utilizationPct >= 50
-                            ? "text-amber-300"
-                            : "text-red-300"
-                      )}
-                    >
-                      {r.utilizationPct.toFixed(1)}%
+                        r.metrics.util >= 70 ? "text-emerald-400" : r.metrics.util >= 50 ? "text-amber-300" : "text-red-300"
+                      )}>
+                        {r.metrics.util.toFixed(1)}%
+                      </div>
+                      <div className="text-[10px] text-tertiary">{fmtCr(r.metrics.released)}</div>
                     </div>
-                    <div className="text-[10px] text-tertiary">
-                      {fmtCr(r.released)}
-                    </div>
-                  </div>
-                  <ArrowRight className="h-3.5 w-3.5 text-tertiary" />
-                </button>
-              ))}
+                    <ArrowRight className="h-3.5 w-3.5 text-tertiary" />
+                  </button>
+                ))
+              )}
             </div>
           </Card>
         </div>
@@ -145,34 +128,19 @@ export function GeoStateView() {
   const setFilter = useApp((s) => s.setFilter);
 
   const stateLgd = selectedStateLgd ?? filters.stateLgd;
-  const state = STATES.find((s) => s.lgd_code === stateLgd);
-  const kpis = aggregateKpis({ stateLgd, schemeId: filters.schemeId, fy: filters.fy });
+  const { data: kpisData, isLoading: kpisLoading } = useKpis({ ...filters, stateLgd });
+  const { data: stateData } = useGeoState(stateLgd, filters.schemeId);
+  const { data: distData, isLoading: distLoading } = useGeoDistricts(stateLgd, filters.schemeId);
+  const state = stateData?.state;
+  const districts = distData?.districts ?? [];
 
-  const districts = DISTRICTS.filter((d) => d.state_lgd === stateLgd);
-  const districtRows = districts
-    .map((d) => {
-      const a = ALLOCATIONS.filter(
-        (x) => x.lgd_code === d.lgd_code && (!filters.schemeId || x.scheme_id === filters.schemeId)
-      );
-      const released = a.reduce((s, x) => s + x.released_cr, 0);
-      const utilized = a.reduce((s, x) => s + x.utilized_cr, 0);
-      return {
-        ...d,
-        released,
-        utilized,
-        utilPct: released > 0 ? (utilized / released) * 100 : 0,
-      };
-    })
-    .sort((a, b) => a.utilPct - b.utilPct);
-
-  const anomalies = ANOMALIES.filter((a) =>
-    districts.some((d) => d.lgd_code === a.lgd_code)
-  );
+  const { data: anomData } = useAnomalies({ stateLgd });
+  const anomalies = anomData?.anomalies ?? [];
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={`${state?.entity_name ?? "State"} — District Drilldown`}
+        title={`${state?.name ?? "State"} — District Drilldown`}
         subtitle={`State LGD ${stateLgd} · ${districts.length} districts · spatial distribution of cross-scheme metrics`}
         icon={MapPin}
         badge={
@@ -192,21 +160,30 @@ export function GeoStateView() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Released" value={fmtCr(kpis.released)} icon={IndianRupee} />
-        <KpiCard
-          label="Utilization %"
-          value={`${kpis.utilizationPct.toFixed(1)}%`}
-          icon={Activity}
-          trend={{ dir: kpis.utilizationPct >= 70 ? "up" : "down", value: `state avg`, good: kpis.utilizationPct >= 70 }}
-        />
-        <KpiCard label="Beneficiaries" value={fmtNum(kpis.beneficiaries)} icon={Users} />
-        <KpiCard
-          label="Open Anomalies"
-          value={anomalies.filter((a) => a.status === "OPEN").length}
-          icon={AlertTriangle}
-          alert={anomalies.some((a) => a.severity === "CRITICAL") ? "critical" : undefined}
-          onClick={() => setView("intelligence-alerts")}
-        />
+        {kpisLoading || !kpisData ? (
+          <div className="col-span-full h-16 rounded-lg border border-subtle bg-surface-elevated flex items-center justify-center">
+            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+            <span className="ml-2 text-xs text-tertiary">Aggregating KPIs…</span>
+          </div>
+        ) : (
+          <>
+            <KpiCard label="Released" value={fmtCr(kpisData.released)} icon={IndianRupee} />
+            <KpiCard
+              label="Utilization %"
+              value={`${kpisData.utilizationPct.toFixed(1)}%`}
+              icon={Activity}
+              trend={{ dir: kpisData.utilizationPct >= 70 ? "up" : "down", value: `state avg`, good: kpisData.utilizationPct >= 70 }}
+            />
+            <KpiCard label="Beneficiaries" value={fmtNum(kpisData.beneficiaries)} icon={Users} />
+            <KpiCard
+              label="Open Anomalies"
+              value={anomalies.filter((a) => a.status === "OPEN").length}
+              icon={AlertTriangle}
+              alert={anomalies.some((a) => a.severity === "CRITICAL") ? "critical" : undefined}
+              onClick={() => setView("intelligence-alerts")}
+            />
+          </>
+        )}
       </div>
 
       <Card
@@ -215,8 +192,10 @@ export function GeoStateView() {
         bodyClassName="p-0"
       >
         <Choropleth
-          stateLgd={stateLgd}
-          schemeId={filters.schemeId}
+          districts={districts}
+          selectedStateLgd={stateLgd}
+          schemeCode={filters.schemeId}
+          loading={distLoading}
           onSelectDistrict={(lgd) => {
             setFilter("districtLgd", lgd);
             openDistrict(lgd);
@@ -234,41 +213,27 @@ export function GeoStateView() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-subtle bg-app">
-                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  District (LGD)
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Released (₹ Cr)
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Utilized (₹ Cr)
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Utilization %
-                </th>
-                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">
-                  Action
-                </th>
+                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">District (LGD)</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Released (₹ Cr)</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Utilized (₹ Cr)</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Utilization %</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider text-tertiary font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
-              {districtRows.map((d) => (
+              {[...districts].sort((a, b) => a.metrics.util - b.metrics.util).map((d) => (
                 <tr key={d.lgd_code} className="border-b border-subtle hover:bg-surface-hover">
                   <td className="px-3 py-2.5">
                     <div className="text-white font-medium">{d.entity_name}</div>
                     <div className="text-[10px] text-tertiary font-mono">LGD {d.lgd_code}</div>
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono text-secondary-muted">
-                    {d.released.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono text-secondary-muted">
-                    {d.utilized.toFixed(1)}
-                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-secondary-muted">{d.metrics.released.toFixed(1)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono text-secondary-muted">{d.metrics.utilized.toFixed(1)}</td>
                   <td className="px-3 py-2.5 text-right font-mono">
                     <span className={cn(
-                      d.utilPct >= 70 ? "text-emerald-400" : d.utilPct >= 50 ? "text-amber-300" : "text-red-300"
+                      d.metrics.util >= 70 ? "text-emerald-400" : d.metrics.util >= 50 ? "text-amber-300" : "text-red-300"
                     )}>
-                      {d.utilPct.toFixed(1)}%
+                      {d.metrics.util.toFixed(1)}%
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">
@@ -300,33 +265,16 @@ export function GeoDistrictView() {
   const openScheme = useApp((s) => s.openScheme);
 
   const distLgd = selectedDistrictLgd ?? filters.districtLgd;
-  const district = DISTRICTS.find((d) => d.lgd_code === distLgd);
-  const state = STATES.find((s) => s.lgd_code === district?.state_lgd);
-
-  const kpis = aggregateKpis({ districtLgd: distLgd, schemeId: filters.schemeId, fy: filters.fy });
-  const anomalies = ANOMALIES.filter((a) => a.lgd_code === distLgd);
-
-  const perScheme = SCHEMES.map((s) => {
-    const a = ALLOCATIONS.filter(
-      (x) => x.lgd_code === distLgd && x.scheme_id === s.scheme_id
-    );
-    const released = a.reduce((acc, x) => acc + x.released_cr, 0);
-    const utilized = a.reduce((acc, x) => acc + x.utilized_cr, 0);
-    const allocated = a.reduce((acc, x) => acc + x.allocated_cr, 0);
-    return {
-      scheme: s,
-      allocated,
-      released,
-      utilized,
-      utilPct: released > 0 ? (utilized / released) * 100 : 0,
-    };
-  });
+  const { data: kpisData, isLoading: kpisLoading } = useKpis({ ...filters, districtLgd: distLgd });
+  const { data: schemesData } = useSchemes({ districtLgd: distLgd ?? undefined, fy: filters.fy });
+  const { data: anomData } = useAnomalies({ districtLgd: distLgd });
+  const anomalies = anomData?.anomalies ?? [];
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={`${district?.entity_name ?? "District"} — Block Convergence Canvas`}
-        subtitle={`District LGD ${distLgd} · ${state?.entity_name} · localized cross-scheme convergence layers`}
+        title={`District LGD ${distLgd ?? "?"} — Block Convergence Canvas`}
+        subtitle="District-scoped view · localized cross-scheme convergence layers"
         icon={Building2}
         badge={
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-950 text-cyan-300 border border-blue-900/60">
@@ -339,76 +287,75 @@ export function GeoDistrictView() {
             className="h-9 px-3 rounded-md bg-app border border-subtle hover:border-blue-600/50 text-xs text-secondary-muted hover:text-white flex items-center gap-1.5 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to {state?.entity_name}
+            Back
           </button>
         }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Released" value={fmtCr(kpis.released)} icon={IndianRupee} />
-        <KpiCard
-          label="Utilization %"
-          value={`${kpis.utilizationPct.toFixed(1)}%`}
-          icon={Activity}
-        />
-        <KpiCard label="Beneficiaries" value={fmtNum(kpis.beneficiaries)} icon={Users} />
-        <KpiCard
-          label="Open Anomalies"
-          value={anomalies.filter((a) => a.status === "OPEN").length}
-          icon={AlertTriangle}
-          alert={anomalies.some((a) => a.severity === "CRITICAL") ? "critical" : undefined}
-          onClick={() => setView("intelligence-alerts")}
-        />
+        {kpisLoading || !kpisData ? (
+          <div className="col-span-full h-16 rounded-lg border border-subtle bg-surface-elevated flex items-center justify-center">
+            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+          </div>
+        ) : (
+          <>
+            <KpiCard label="Released" value={fmtCr(kpisData.released)} icon={IndianRupee} />
+            <KpiCard label="Utilization %" value={`${kpisData.utilizationPct.toFixed(1)}%`} icon={Activity} />
+            <KpiCard label="Beneficiaries" value={fmtNum(kpisData.beneficiaries)} icon={Users} />
+            <KpiCard
+              label="Open Anomalies"
+              value={anomalies.filter((a) => a.status === "OPEN").length}
+              icon={AlertTriangle}
+              alert={anomalies.some((a) => a.severity === "CRITICAL") ? "critical" : undefined}
+              onClick={() => setView("intelligence-alerts")}
+            />
+          </>
+        )}
       </div>
 
       {/* Per-scheme breakdown */}
-      <Card title="Scheme-Level Performance" subtitle={`In ${district?.entity_name}`} bodyClassName="p-0">
+      <Card title="Scheme-Level Performance" bodyClassName="p-0">
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-subtle">
-          {perScheme.map((p) => (
+          {(schemesData?.schemes ?? []).map((p) => (
             <button
-              key={p.scheme.scheme_id}
-              onClick={() => openScheme(p.scheme.scheme_id)}
+              key={p.scheme_id}
+              onClick={() => openScheme(p.scheme_id)}
               className="text-left p-4 hover:bg-surface-hover transition-colors"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full" style={{ background: p.scheme.color }} />
-                  <span className="text-sm font-semibold text-white">
-                    {p.scheme.scheme_code}
-                  </span>
+                  <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+                  <span className="text-sm font-semibold text-white">{p.scheme_code}</span>
                 </div>
-                <span
-                  className={cn(
-                    "text-sm font-mono font-bold",
-                    p.utilPct >= 70 ? "text-emerald-400" : p.utilPct >= 50 ? "text-amber-300" : "text-red-300"
-                  )}
-                >
-                  {p.utilPct.toFixed(1)}%
+                <span className={cn(
+                  "text-sm font-mono font-bold",
+                  p.metrics.utilizationPct >= 70 ? "text-emerald-400" : p.metrics.utilizationPct >= 50 ? "text-amber-300" : "text-red-300"
+                )}>
+                  {p.metrics.utilizationPct.toFixed(1)}%
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-[11px]">
                 <div>
                   <div className="text-tertiary text-[10px] uppercase">Alloc</div>
-                  <div className="text-white font-mono">{fmtCr(p.allocated)}</div>
+                  <div className="text-white font-mono">{fmtCr(p.metrics.allocated)}</div>
                 </div>
                 <div>
                   <div className="text-tertiary text-[10px] uppercase">Release</div>
-                  <div className="text-white font-mono">{fmtCr(p.released)}</div>
+                  <div className="text-white font-mono">{fmtCr(p.metrics.released)}</div>
                 </div>
                 <div>
                   <div className="text-tertiary text-[10px] uppercase">Util</div>
-                  <div className="text-white font-mono">{fmtCr(p.utilized)}</div>
+                  <div className="text-white font-mono">{fmtCr(p.metrics.utilized)}</div>
                 </div>
               </div>
               <div className="h-1 mt-3 rounded-full overflow-hidden bg-surface-hover">
-                <div className="h-full" style={{ width: `${Math.min(p.utilPct, 100)}%`, background: p.scheme.color }} />
+                <div className="h-full" style={{ width: `${Math.min(p.metrics.utilizationPct, 100)}%`, background: p.color }} />
               </div>
             </button>
           ))}
         </div>
       </Card>
 
-      {/* District anomalies */}
       <Card title="Anomalies in this District" subtitle="Auto-detected by sp_detect_governance_anomalies()" bodyClassName="p-0">
         {anomalies.length === 0 ? (
           <div className="p-8 text-center">
@@ -421,9 +368,7 @@ export function GeoDistrictView() {
               <div key={a.anomaly_id} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-3 mb-1">
                   <div>
-                    <div className="text-xs font-mono text-tertiary">
-                      {a.anomaly_id} · {a.anomaly_type.replace(/_/g, " ")}
-                    </div>
+                    <div className="text-xs font-mono text-tertiary">{a.anomaly_id} · {a.anomaly_type.replace(/_/g, " ")}</div>
                     <div className="text-sm text-white mt-0.5">{a.description}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

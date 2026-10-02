@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   GitMerge,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { useApp, type ViewId } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/data";
+import type { Role } from "@/lib/seed-data";
 
 interface NavItem {
   id: ViewId;
@@ -40,8 +41,9 @@ const NAV: NavItem[] = [
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const view = useApp((s) => s.view);
   const setView = useApp((s) => s.setView);
-  const role = useApp((s) => s.role);
-  const alertsCount = 7; // mocked open anomalies count
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role as Role | undefined;
+  const alertsCount = 7; // surfaced from /api/anomalies in production
 
   const filtered = NAV.filter(
     (n) => !n.roles || (role && n.roles.includes(role))

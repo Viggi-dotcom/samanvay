@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import {
   Search,
   Mic,
@@ -12,20 +13,35 @@ import {
   Menu,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { STATES, DISTRICTS, SCHEMES, fmtNum } from "@/lib/data";
+import { STATES, DISTRICTS, SCHEMES } from "@/lib/seed-data";
+import { useSchemes } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
+const ROLE_LABELS: Record<string, string> = {
+  central_executive: "Central Executive",
+  dept_nodal: "Dept Nodal Officer",
+  district_magistrate: "District Magistrate",
+  auditor: "Auditor",
+  super_admin: "Super Admin",
+};
+
+const ROLE_SCOPES: Record<string, string> = {
+  central_executive: "Pan-India, Cross-Ministry",
+  dept_nodal: "Ministry-Scoped",
+  district_magistrate: "District-Specific (LGD 463)",
+  auditor: "Anonymized Pan-India",
+  super_admin: "Global System-wide",
+};
+
 export function Header({ onMenu }: { onMenu?: () => void }) {
-  const persona = useApp((s) => s.persona);
+  const { data: session } = useSession();
+  const user = session?.user as any;
   const filters = useApp((s) => s.filters);
   const setFilter = useApp((s) => s.setFilter);
   const resetFilters = useApp((s) => s.resetFilters);
   const setView = useApp((s) => s.setView);
-  const logout = useApp((s) => s.logout);
-
-  const [stateOpen, setStateOpen] = useState(false);
-  const [schemeOpen, setSchemeOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
+  const { data: schemesData } = useSchemes({ stateLgd: filters.stateLgd, districtLgd: filters.districtLgd, fy: filters.fy });
+  const schemes = schemesData?.schemes ?? [];
 
   const stateName =
     STATES.find((s) => s.lgd_code === filters.stateLgd)?.entity_name ?? "All India";
@@ -33,8 +49,12 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
     ? DISTRICTS.find((d) => d.lgd_code === filters.districtLgd)?.entity_name
     : null;
   const schemeName = filters.schemeId
-    ? SCHEMES.find((s) => s.scheme_id === filters.schemeId)?.scheme_code
+    ? schemes.find((s) => s.scheme_id === filters.schemeId)?.scheme_code
     : "All Schemes";
+
+  const [stateOpen, setStateOpen] = useState(false);
+  const [schemeOpen, setSchemeOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
 
   return (
     <header className="h-14 bg-app border-b border-subtle flex items-center gap-3 px-4 lg:px-6 sticky top-0 z-30">
@@ -154,7 +174,7 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
               className="h-2 w-2 rounded-full"
               style={{
                 background: filters.schemeId
-                  ? SCHEMES.find((s) => s.scheme_id === filters.schemeId)?.color
+                  ? schemes.find((s) => s.scheme_id === filters.schemeId)?.color
                   : "#9CA3AF",
               }}
             />
@@ -172,7 +192,7 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
               >
                 All Schemes
               </button>
-              {SCHEMES.map((s) => (
+              {schemes.map((s) => (
                 <button
                   key={s.scheme_id}
                   onClick={() => {
@@ -238,14 +258,14 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
           className="h-9 pl-1.5 pr-2 rounded-md hover:bg-surface-hover flex items-center gap-2"
         >
           <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-[10px] font-semibold text-white">
-            {persona?.label.slice(0, 2).toUpperCase()}
+            {(user?.name ?? "U").slice(0, 2).toUpperCase()}
           </div>
           <div className="hidden xl:block text-left">
             <div className="text-[11px] font-medium text-white leading-none">
-              {persona?.label.split("(")[0].trim()}
+              {user?.name ?? "Unknown"}
             </div>
             <div className="text-[9px] text-tertiary mt-0.5 font-mono uppercase">
-              {persona?.role.replace(/_/g, " ")}
+              {user?.role?.replace(/_/g, " ")}
             </div>
           </div>
           <ChevronDown className="h-3 w-3 text-tertiary" />
@@ -254,35 +274,41 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
           <div className="absolute right-0 mt-1 w-72 rounded-md bg-surface-elevated border border-subtle shadow-xl z-40 p-3">
             <div className="flex items-center gap-3 pb-3 border-b border-subtle">
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-xs font-semibold text-white">
-                {persona?.label.slice(0, 2).toUpperCase()}
+                {(user?.name ?? "U").slice(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-white truncate">
-                  {persona?.label}
+                  {user?.name}
                 </div>
                 <div className="text-[11px] text-tertiary truncate">
-                  {persona?.targetUser}
+                  {user?.email}
                 </div>
               </div>
             </div>
             <div className="py-2 space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-tertiary">Access Scope</span>
-                <span className="text-secondary-muted text-right max-w-[170px]">
-                  {persona?.dataAccessScope}
+                <span className="text-tertiary">Role</span>
+                <span className="text-white font-medium">
+                  {ROLE_LABELS[user?.role ?? ""] ?? user?.role}
                 </span>
               </div>
-              {persona?.assignedLgdCode && (
+              <div className="flex justify-between">
+                <span className="text-tertiary">Access Scope</span>
+                <span className="text-secondary-muted text-right max-w-[170px]">
+                  {ROLE_SCOPES[user?.role ?? ""] ?? "—"}
+                </span>
+              </div>
+              {user?.assignedLgdCode && (
                 <div className="flex justify-between">
                   <span className="text-tertiary">Assigned LGD</span>
                   <span className="font-mono text-cyan-300">
-                    {persona.assignedLgdCode}
+                    {user.assignedLgdCode}
                   </span>
                 </div>
               )}
             </div>
             <button
-              onClick={logout}
+              onClick={() => signOut({ callbackUrl: "/" })}
               className="mt-2 w-full h-8 rounded-md bg-app hover:bg-surface-hover border border-subtle text-xs text-red-300 flex items-center justify-center gap-1.5"
             >
               <LogOut className="h-3 w-3" />
