@@ -344,18 +344,42 @@ function seeded(seed: number) {
 
 const FY = "2025-2026";
 
+// Documented extreme-value districts — these reflect the anomaly records
+// (Araria, Kishanganj, Purnia in Bihar; Koraput, Kalahandi, Rayagada in Odisha;
+// Basti in UP). For these we force LOW utilization on MGNREGA and PMAY-G so
+// the Convergence Matrix will correctly flag OVERLAP_HIGH / GAP / STALLING.
+const EXTREME_DISTRICTS: Record<
+  number,
+  { mgnregaUtil: number; pmaygUtil: number; pmkisanUtil: number; pmaygCompletion: number }
+> = {
+  216: { mgnregaUtil: 0.38, pmaygUtil: 0.32, pmkisanUtil: 0.71, pmaygCompletion: 0.28 }, // Araria
+  222: { mgnregaUtil: 0.42, pmaygUtil: 0.36, pmkisanUtil: 0.68, pmaygCompletion: 0.34 }, // Kishanganj
+  230: { mgnregaUtil: 0.47, pmaygUtil: 0.41, pmkisanUtil: 0.55, pmaygCompletion: 0.39 }, // Purnia
+  382: { mgnregaUtil: 0.38, pmaygUtil: 0.34, pmkisanUtil: 0.62, pmaygCompletion: 0.31 }, // Koraput
+  380: { mgnregaUtil: 0.44, pmaygUtil: 0.40, pmkisanUtil: 0.65, pmaygCompletion: 0.36 }, // Kalahandi
+  381: { mgnregaUtil: 0.51, pmaygUtil: 0.45, pmkisanUtil: 0.69, pmaygCompletion: 0.42 }, // Rayagada
+  461: { mgnregaUtil: 0.74, pmaygUtil: 0.38, pmkisanUtil: 0.78, pmaygCompletion: 0.36 }, // Basti (overlap high)
+  463: { mgnregaUtil: 0.81, pmaygUtil: 0.39, pmkisanUtil: 0.82, pmaygCompletion: 0.37 }, // Gorakhpur (overlap high)
+};
+
 // Build allocation facts for every district x scheme x quarter
 export function buildAllocations(): AllocationFact[] {
   const rand = seeded(42);
   const out: AllocationFact[] = [];
   for (const d of DISTRICTS) {
+    const extreme = EXTREME_DISTRICTS[d.lgd_code];
     for (const s of SCHEMES) {
       for (let q = 1; q <= 4; q++) {
         const base = (d.lgd_code % 100) * 10 + 50;
         const allocated = Math.round((base + rand() * 80) * 10) / 10;
         const releaseRatio = 0.7 + rand() * 0.25;
         const released = Math.round(allocated * releaseRatio * 10) / 10;
-        const utilRatio = 0.4 + rand() * 0.5;
+        let utilRatio = 0.4 + rand() * 0.5;
+        if (extreme) {
+          if (s.scheme_id === "sch-mgnrega") utilRatio = extreme.mgnregaUtil;
+          else if (s.scheme_id === "sch-pmayg") utilRatio = extreme.pmaygUtil;
+          else if (s.scheme_id === "sch-pmkisan") utilRatio = extreme.pmkisanUtil;
+        }
         const utilized = Math.round(released * utilRatio * 10) / 10;
         out.push({
           scheme_id: s.scheme_id,
@@ -378,9 +402,14 @@ export function buildBeneficiaries(): BeneficiaryFact[] {
   const rand = seeded(73);
   const out: BeneficiaryFact[] = [];
   for (const d of DISTRICTS) {
+    const extreme = EXTREME_DISTRICTS[d.lgd_code];
     for (const s of SCHEMES) {
       const target = Math.round(1000 + rand() * 9000);
-      const achieved = Math.round(target * (0.4 + rand() * 0.55));
+      let achieveRatio = 0.4 + rand() * 0.55;
+      if (extreme && s.scheme_id === "sch-pmayg") {
+        achieveRatio = extreme.pmaygCompletion;
+      }
+      const achieved = Math.round(target * achieveRatio);
       const ben = Math.round(achieved * (2 + rand() * 6));
       out.push({
         scheme_id: s.scheme_id,
