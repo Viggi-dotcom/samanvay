@@ -1,0 +1,138 @@
+
+--- Page 1 ---
+Document 3 Information Architecture &
+Wireframe Spec
+System architecture, endpoint routing, and component-level interface designs for the
+AIPowered Governance Intelligence Platform.
+1. Sitemap & URL Routing Architecture
+Interface Description & Core
+Route Access Scope
+Capabilities
+/ Public System landing and
+authentication entry redirect
+point.
+/auth/login Public Multi-factor Government SSO,
+ID.gov.in integration, and
+Supabase Auth.
+/auth/unauthorized Public Access Denied view triggered
+by insufficient LGD or role
+claims.
+/app Authenticated Layout wrapper enforcing RBAC
+and active session token
+validation.
+/app/overview All Roles Executive Command Center
+featuring national choropleth
+and top-level KPI metrics.
+/app/convergence Central Exec, Dept Nodal, … Cross-scheme intelligence hub.
+/app/convergence/matrix Central Exec, Dept Nodal, … Cross-scheme overlap and gap
+analysis matrix.
+/app/convergence/compare Central Exec, Dept Nodal, … Side-by-side multi-scheme
+metric comparison tool.
+/app/geo All Roles Geographic intelligence spatial
+views.
+
+--- Page 2 ---
+Interface Description & Core
+Route Access Scope
+Capabilities
+/app/geo/national All Roles National macro choropleth
+rendering cross-state metrics.
+/app/geo/state/[stateLgd] All Roles State-level district drilldown and
+spatial distribution.
+/app/geo/district/[distLg All Roles District block-level convergence
+d] canvas and localized map
+layers.
+/app/schemes All Roles Ingested scheme administrative
+views.
+/app/schemes/directory All Roles Comprehensive catalog of all
+ingested national and state
+schemes.
+/app/schemes/[schemeId] All Roles Granular scheme drilldown
+MGNREGA, PMKISAN,
+PMAYG, etc.).
+/app/intelligence All Roles AI reasoning and anomaly feeds.
+/app/intelligence/query All Roles Natural language query and
+reasoning workbench.
+/app/intelligence/alerts All Roles Anomaly detection engine and
+stalled project alert feed.
+/app/admin Super Admin System administration and data
+pipeline controls.
+/app/admin/pipelines Super Admin Ingestion scheduler, ETL error
+logs, and LGD mapping status.
+/app/admin/users Super Admin User provisioning and LGD
+scope assignment management.
+
+--- Page 3 ---
+2. Screen-by-Screen Component Inventory
+Screen 1 Executive Command Center (/app/overview)
+Header Navigation
+● Left Cluster: Government Emblem, Platform Brand Identifier ("Samanvay Intelligence"),
+Active Environment Status Badge.
+● Center Cluster: Global Natural Language Search Prompt Bar ("Ask a cross-scheme
+question...").
+● Right Cluster: Fiscal Year Selector (FY 2025-26), LGD Scope Chip Selector (All
+India), User Profile & Role Indicator.
+Section 1 Executive KPI Metric Strip
+● Card 1 Total Outlay vs. Expenditure
+○ Primary metric display: ₹ Cr Utilized vs. ₹ Cr Allocated.
+○ Visual indicator: Circular progress ring showing overall percentage utilization.
+● Card 2 Active Beneficiary Footprint
+○ Primary metric display: Unique De-duplicated Individual Beneficiaries.
+○ Demographic breakdown: Sub-text distribution for SC, ST, and Women
+categories.
+● Card 3 Cross-Scheme Interventions
+○ Primary metric display: Total Active Works Across Rural Development +
+Housing.
+○ Contextual change indicator relative to the previous fiscal quarter.
+● Card 4 System Critical Anomalies
+○ Primary metric display: Count of Stalled or Divergent Districts.
+○ Visual indicator: High-priority critical alert pill with direct filter trigger.
+Section 2 Interactive Geographic Intelligence
+● Left Column 8Span Map Canvas
+○ Toolbar: View controls including Scheme Convergence, Fund Utilization, and
+Gap Index.
+○ Interactive Vector Map: High-resolution India vector canvas with GeoJSON
+hover tooltips for key metrics.
+● Right Column 4Span Divergence Panel
+○ Panel Header: "Top Divergent Districts" Fund Flow High / Milestone Lagging).
+○ District List Component: Dynamic repeating list showing District Name, State,
+Deviation Score, and "Drill Down" action link.
+Section 3 Recent Cross-Ministry Intelligence Insights
+● Section Header: "AIDetected Implementation Bottlenecks" Auto-generated from
+nightly pipelines).
+
+--- Page 4 ---
+● 3Column Insight Grid:
+○ Insight Card A Overlap): PMAYG construction delayed in 14 blocks due to
+timber transport embargo.
+○ Insight Card B Gap 32,000 PMKISAN landholders missing MGNREGA job
+card linkages in Bundelkhand.
+○ Insight Card C Velocity): Jal Jeevan Mission fund utilization surging 4x faster
+than asset validation.
+Screen 2 Natural Language Query & Reasoning Workbench
+(/app/intelligence/query)
+Left Rail: Query Composer & History 5Span
+● Preset Prompt Chips: One-click sample queries (e.g., "Show fund stagnation > 60
+days", "Compare PMAYG vs MGNREGA in tribal districts").
+● NLP Query Input Textarea: Auto-expanding text input featuring token count display and
+active schema hint pills.
+● Execution Controls: "Generate Insight" action button alongside a Confidence Strictness
+slider.
+● Recent Audit Queries List: Interactive list of past user sessions displaying query text,
+timestamp, and query latency metrics.
+Right Workspace: Dynamic Intelligence Response Canvas 7Span
+● State Management Container: Visual rendering states for Empty, Loading Skeleton,
+and Active Content.
+● Response Header: Echoed Formulated Question with "Verified Against Schema"
+execution status badge.
+● AI Synthesized Answer Card: Structured natural-language narrative summary with key
+data points highlighted in bold anchors.
+● Dynamic Data Visualization: Context-aware chart generation Grouped Bar, Multi-line
+Trend, or District Heatmap based on SQL response structure).
+● Evidence & Provenance Accordion Traceability Layer):
+○ Tab 1 Generated SQL Query): Read-only syntax-highlighted SQL with execution
+time in milliseconds.
+○ Tab 2 Source Tables & Joins): Visual schema breadcrumb chain (e.g.,
+mord_mgnrega_perf ⋈ moa_pmkisan).
+○ Tab 3 Raw Tabular Data Output): Paginated, sortable interactive data table with
+CSV and XLSX export triggers.

@@ -1,0 +1,140 @@
+
+--- Page 1 ---
+AIPowered Governance Intelligence Platform
+Document 2 Frontend Design Requirements Document DRD /
+UIUX Spec)
+1. Design System & Style Guide
+A. Color Tokens Semantic & Hex)
+Designed to convey institutional authority, high data density, and WCAG AA-compliant visual
+hierarchy.
+● Base Surfaces:
+○ --bg-app: #0B0F19 Ultra-deep slate navy base)
+○ --bg-surface-elevated: #111827 Card, panel, and modal background)
+○ --bg-surface-hover: #1F2937 Hover states for interactive surfaces)
+○ --border-subtle: #374151 Card dividers, table borders)
+○ --border-focus: #3B82F6 Active input outlines)
+● Brand & Interaction:
+○ --primary-500: #2563EB Primary CTAs, active tab indicators)
+○ --primary-600: #1D4ED8 Hover state for primary buttons)
+○ --primary-muted: #1E3A8A Selected item fills, badge backgrounds)
+○ --accent-cyan: #06B6D4 Data visualization highlights, secondary metrics)
+● Typography & Contrast:
+○ --text-primary: #F9FAFB 100% white-slate for headings and primary
+metrics)
+○ --text-secondary: #9CA3AF 60% gray for table labels, subtitles)
+○ --text-tertiary: #6B7280 Disabled text, placeholder text)
+● Alert & Anomaly States:
+○ --alert-critical-text: #FCA5A5 | --alert-critical-bg: #7F1D1D Low
+utilization 40%, stalled projects)
+○ --alert-warning-text: #FDE68A | --alert-warning-bg: #78350F
+Divergence/Overlaps, reporting delays)
+○ --alert-success-text: #86EFAC | --alert-success-bg: #14532D Target
+achieved, verified convergence)
+
+--- Page 2 ---
+B. Typography Scale
+Font Family: Inter Primary UI with JetBrains Mono for numbers, LGD codes, and financial
+amounts.
+Level Font Family Size (px) Line Height (px) Weight Tracking Usage
+Display 1 Inter 32 40 Bold 700 0.02em Executive KPI Headline
+Heading 1 Inter 24 32 Semi-Bold 600 0.01em View/Dashboard Titles
+Heading 2 Inter 18 26 Semi-Bold 600 Normal Card Headers, Modal Titles
+General Descriptions, Form
+Body Regular Inter 14 20 Regular 400 Normal
+Labels
+Body Medium Inter 14 20 Medium 500 Normal Table Rows, Button Labels
+Metric Value JetBrains Mono 20 28 Bold 700 0.01em Financial Figures ₹ Cr), Counts
+LGD Codes, Timestamps,
+Caption / Code JetBrains Mono 12 16 Regular 400 0.02em
+Citations
+C. Core Component Interactive States
+● Primary Button:
+○ Default: Background --primary-500, Text --text-primary, Border none,
+Radius 6px, Height 38px, Padding 0 16px.
+○ Hover: Background --primary-600, Transition background-color 150ms
+ease-in-out.
+○ Active: Background #1E40AF, Scale 0.98.
+○ Disabled: Background --bg-surface-hover, Text --text-tertiary, Cursor
+not-allowed, Opacity 0.5.
+● Search / NL Input Box:
+○ Default: Background --bg-surface-elevated, Border 1px solid
+--border-subtle, Radius 8px, Text --text-primary, Height 48px, Left Icon
+Search, Right Icon Command+K or Mic).
+○ Hover: Border 1px solid #4B5563.
+○ Active/Focus: Border 1.5px solid --primary-500, Box-shadow 0 0 0 3px
+rgba(59, 130, 246, 0.25), Outline none.
+○ Disabled: Background --bg-app, Border 1px solid --border-subtle,
+Cursor not-allowed.
+
+--- Page 3 ---
+2. Layout & Responsive Breakpoints
+● Breakpoint Standards:
+○ Desktop Default): >= 1280px Optimized for 1440900 and 19201080
+command centers)
+○ Tablet Landscape): 1024px - 1279px
+○ Tablet Portrait): 768px - 1023px
+○ Mobile: < 768px
+● Desktop Layout Container:
+○ Persistent left sidebar 260px width), fluid main workspace, max inner content
+container 1600px centered with 24px/32px padding.
+○ Flexbox row for filter bars; 12-column CSS Grid with 20px gap for metric cards.
+● Tablet Layout Container:
+○ Sidebar collapses to an icon-only 72px rail.
+○ Metric cards collapse from 4-columns to 2-columns (repeat(6, 1fr)).
+○ Wide data tables activate horizontal scrolling with the first two columns
+Scheme Name, LGD Entity) sticky pinned.
+● Mobile Layout Container:
+○ Sidebar converts to an off-canvas drawer toggled via 56px hamburger header.
+○ Grid transforms to single-column vertical stack 100% width).
+○ Interactive choropleth map features a touch zoom lock with an explicit "Use two
+fingers to pan" overlay.
+3. Visual State Matrix
+Visual Implementation & CSS
+State Type Behavior / Content
+Rules
+Centered flexbox, padding 64px Feedback: "No anomaly records
+24px. Border: dashed 1px solid match the selected filters for
+Empty State
+--border-subtle. Vector District: Basti." Primary CTA
+illustration (monochrome slate). "Reset Filters".
+Placeholder geometric blocks Prevents Cumulative Layout Shift
+matching target dimensions. CLS. Tables render 5 rows of
+Skeleton Loading
+Gradient shimmer 200% width, skeleton lines; KPI cards render
+animation 1.5s infinite. skeleton metrics.
+Fixed top banner or inline card Text: "Data sync failure: Unable
+alert. Background to fetch LGD boundary polygon
+Error Banner
+--alert-critical-bg, border from NIC GIS service HTTP
+1px solid 504." Action: "Retry Sync".
+
+--- Page 4 ---
+Visual Implementation & CSS
+State Type Behavior / Content
+Rules
+--alert-critical-text. Icon:
+Alert Triangle.
+Displays asynchronous status
+Floating bottom-right (bottom:
+updates (e.g., "Natural language
+24px, right: 24px, z-index:
+Toast Alert query exported to CSV
+9999. Width 360px, slide-in-up
+successfully"). Auto-dismiss
+200ms.
+4000ms.
+4. Accessibility & Usability Standards
+● Contrast Compliance: All text-to-background contrast ratios strictly meet WCAG 2.1
+Level AA standards: minimum 4.51 for normal body text and 31 for graphical UI
+components and large text.
+● Touch Targets: All interactive elements provide a minimum bounding box of 44 x 44
+pixels on touch-enabled tablet and mobile interfaces.
+● Keyboard Navigation: Full Tab Order navigation enabled. Every interactive node
+contains an explicit focus ring (focus-visible: 2px solid --primary-500;
+outline-offset: 2px). Map pan/zoom supports standard arrow keys (+, -, and arrow
+keys).
+● Screen Reader Semantic Roles:
+○ Dynamic live metrics marked with aria-live="polite".
+○ Anomaly banners flagged with role="alert".
+○ Expandable evidence drawers linked with aria-expanded="true/false" and
+aria-controls="evidence-panel-id".

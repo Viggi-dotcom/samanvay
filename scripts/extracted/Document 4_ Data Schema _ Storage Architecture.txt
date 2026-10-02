@@ -1,0 +1,151 @@
+
+--- Page 1 ---
+Data Schema & Storage Architecture
+AIPowered Governance Intelligence Platform Specification
+1. Canonical PostgreSQL Data Models & Entities
+Table 1 dim_ministries
+Stores central government administrative bodies.
+Field Name Type Constraints Relations / Foreign Keys Description
+ministry_id UUID PK, Default gen_random_uui… None Primary Key
+ministry_code VARCHAR(32) Unique, Not Null None Unique identifier (e.g., GOI_MORD)
+ministry_name TEXT Not Null None Full title (e.g., Ministry of Rural
+Development)
+nodal_email VARCHAR(255) Not Null None Administrative contact address
+created_at TIMESTAMPTZ Default clock_timestamp() None Record creation audit timestamp
+Table 2 dim_schemes
+Catalog of centrally sponsored and central sector schemes.
+Field Name Type Constraints Relations / Foreign Keys Description
+scheme_id UUID PK, Default gen_random_uui… None Primary Key
+ministry_id UUID Not Null FK → dim_ministries.ministry… Parent ministry reference
+scheme_code VARCHAR(64) Unique, Not Null None Official code (e.g., PMAY_G,
+MGNREGA)
+scheme_name TEXT Not Null None Full public scheme name
+scheme_type VARCHAR(32) Check (type IN ('CORE_OF_… None Official financial scheme
+classification
+launch_date DATE Optional None Operational launch date
+is_active BOOLEAN Default true None Active ingestion flag
+
+--- Page 2 ---
+Table 3 dim_lgd_geography
+Canonical spatial and administrative directory conforming to Ministry of Panchayati Raj LGD
+standards.
+Field Name Type Constraints Relations / Foreign Keys Description
+lgd_code INTEGER PK None Official Government LGD numeric
+code
+entity_level VARCHAR(16) Check (entity_level IN ('STAT… None Administrative tier
+entity_name VARCHAR(128) Not Null None Canonical English name
+parent_lgd INTEGER Nullable Null for States) FK → dim_lgd_geography.lg… Self-referencing hierarchical
+parent
+state_lgd INTEGER Not Null None Associated root state LGD code
+geojson JSONB Nullable None Vector boundary geometry for GIS
+rendering
+Table 4 fact_scheme_allocations
+Financial allocations, releases, and reported expenditures aggregated by time and geography.
+Field Name Type Constraints Relations / Foreign Keys Description
+allocation_id UUID PK, Default gen_random_uui… None Primary Key
+scheme_id UUID Not Null FK → dim_schemes.scheme… Target scheme reference
+lgd_code INTEGER Not Null FK → dim_lgd_geography.lg… Geographic allocation destination
+financial_year VARCHAR(9) Not Null (e.g., '20252026') None Indian Financial Year period
+quarter SMALLINT Check (quarter BETWEEN 1 … None Reporting fiscal quarter
+allocated_cr NUMERIC(14,2) Not Null, Default 0.00 None Budget allocation in ₹ Crores
+released_cr NUMERIC(14,2) Not Null, Default 0.00 None Central treasury release in ₹
+Crores
+utilized_cr NUMERIC(14,2) Not Null, Default 0.00 None Validated expenditure in ₹ Crores
+updated_at TIMESTAMPTZ Default clock_timestamp() None Timestamp of last reported
+progress
+
+--- Page 3 ---
+Table 5 fact_scheme_beneficiaries_agg
+De-duplicated, aggregated beneficiary and physical milestone footprints.
+Field Name Type Constraints Relations / Foreign Keys Description
+metric_id UUID PK, Default gen_random_uui… None Primary Key
+scheme_id UUID Not Null FK → dim_schemes.scheme… Target scheme reference
+lgd_code INTEGER Not Null FK → dim_lgd_geography.lg… Administrative boundary
+reporting_month DATE Not Null Normalized to 1st o… None Monthly time-series anchor
+target_units INTEGER Not Null, Default 0 None Physical target (e.g., houses, tap
+lines)
+achieved_units INTEGER Not Null, Default 0 None Physically verified units
+completed
+beneficiaries_total INTEGER Not Null, Default 0 None Total unique beneficiaries served
+beneficiaries_women INTEGER Default 0 None Sub-metric count: Female
+beneficiaries
+beneficiaries_sc_st INTEGER Default 0 None Sub-metric count: SC/ST
+beneficiaries
+Table 6 fact_detected_anomalies
+Stores machine-detected divergence, gaps, and underperformance alerts.
+Field Name Type Constraints Relations / Foreign Keys Description
+anomaly_id UUID PK, Default gen_random_uui… None Primary Key
+scheme_id UUID Nullable Null if cross-sche… FK → dim_schemes.scheme… Scheme involved
+lgd_code INTEGER Not Null FK → dim_lgd_geography.lg… Location of anomaly
+anomaly_type VARCHAR(32) Check (anomaly_type IN ('U… None Categorical label
+severity VARCHAR(16) Check (severity IN ('LOW', '… None Operational escalation level
+z_score NUMERIC(5,2) Nullable None Statistical standard deviations
+from mean
+
+--- Page 4 ---
+Field Name Type Constraints Relations / Foreign Keys Description
+evidence_payload JSONB Not Null None Data points & formula variables
+driving alert
+status VARCHAR(16) Default 'OPEN' Check (statu… None Action resolution lifecycle
+created_at TIMESTAMPTZ Default clock_timestamp() None Ingestion timestamp
+2. Security & Access Rules PostgreSQL Row-Level Security)
+-- 1. Enable RLS on core fact tables
+ALTER TABLE fact_scheme_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fact_scheme_beneficiaries_agg ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fact_detected_anomalies ENABLE ROW LEVEL SECURITY;
+-- 2. Policy: Super Admins & Central Executives have universal read access
+CREATE POLICY p_central_read_all_allocations
+ON fact_scheme_allocations
+FOR SELECT
+TO authenticated
+USING (
+(auth.jwt() →> 'role') IN ('super_admin', 'central_executive', 'auditor')
+);
+-- 3. Policy: Department Nodal Officers can only read data related to their assigned Ministry
+CREATE POLICY p_dept_nodal_read_own_scheme_allocations
+ON fact_scheme_allocations
+FOR SELECT
+TO authenticated
+USING (
+
+--- Page 5 ---
+(auth.jwt() →> 'role') = 'dept_nodal'
+AND scheme_id IN (
+SELECT s.scheme_id
+FROM dim_schemes s
+WHERE s.ministry_id = (auth.jwt() →> 'assigned_ministry_id'UUID
+)
+);
+-- 4. Policy: District Magistrates can only view records within their assigned District LGD
+hierarchy
+CREATE POLICY p_dm_read_local_geography
+ON fact_scheme_allocations
+FOR SELECT
+TO authenticated
+USING (
+(auth.jwt() →> 'role') = 'district_magistrate'
+AND lgd_code IN (
+SELECT geo.lgd_code
+FROM dim_lgd_geography geo
+WHERE geo.lgd_code = (auth.jwt() →> 'assigned_lgd_code'INTEGER
+OR geo.parent_lgd = (auth.jwt() →> 'assigned_lgd_code'INTEGER
+)
+);
+-- 5. Policy: Anomaly updates (acknowledgement/resolution) strictly limited to DMs in their
+district or Super Admins
+CREATE POLICY p_update_anomalies_scope
+
+--- Page 6 ---
+ON fact_detected_anomalies
+FOR UPDATE
+TO authenticated
+USING (
+(auth.jwt() →> 'role') = 'super_admin'
+OR (
+(auth.jwt() →> 'role') = 'district_magistrate'
+AND lgd_code = (auth.jwt() →> 'assigned_lgd_code'INTEGER
+)
+)
+WITH CHECK (
+status IN ('ACKNOWLEDGED', 'RESOLVED')
+);

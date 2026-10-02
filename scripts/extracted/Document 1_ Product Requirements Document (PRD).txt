@@ -1,0 +1,129 @@
+
+--- Page 1 ---
+Product Requirements Document
+AIPowered Governance Intelligence Platform
+Project Overview & Context
+Government programmes across India involve multiple ministries, departments, implementing
+agencies, and geographic regions. Data related to schemes, budgets, projects, beneficiaries,
+implementation progress, and outcomes is fragmented across portals, reports, financial
+systems, and geospatial datasets.
+This platform integrates data from multiple government schemes—anchored on canonical
+Local Government Directory LGD codes—to provide a unified view of implementation,
+resource utilization, geographic coverage, and outcomes.
+Ingested Datasets MVP Baseline)
+1. MGNREGA Ministry of Rural Development): Wage employment, transactional
+progress, person-days generated, and wage expenditure.
+2. PMKISAN Ministry of Agriculture): Direct Benefit Transfer DBT income support
+releases, landholder verification counts.
+3. PMAYG Ministry of Rural Development): Rural housing sanctioning, geo-tagged
+construction milestones, and tranche releases.
+1. Personas & Permissions Role-Based Access Control)
+Persona Role Target User Data Access Scope Permissions & Capabilities
+Super Admin Platform Engineering / NIC Global System-wide Schema migrations, API token
+Admin management, pipeline
+scheduling, audit log inspection,
+user provisioning.
+Central Executive Cabinet Secretariat, Ministry Pan-India, Cross-Ministry Read-only aggregate and
+Secretaries, NITI Aayog drill-down access across all
+schemes, NLP query workbench,
+automated convergence reports,
+cross-scheme correlation
+exports.
+
+--- Page 2 ---
+Persona Role Target User Data Access Scope Permissions & Capabilities
+Department Nodal Officer Joint Secretary / Director (e.g., Ministry-Specific Deep + Full access to own ministry's
+MoRD, MoA Cross-Ministry Aggregated) granular data; read-only macro
+indicators for other ministries;
+set threshold alerts for scheme
+milestones.
+District Magistrate DM / DC District Collectors, Chief District-Specific Down to Gram Granular cross-scheme view
+Development Officers CDOs Panchayat) within assigned district LGD
+code; field intervention tracking,
+flagging reporting discrepancies,
+assigning field audits.
+Auditor / Research Analyst CAG, Evaluation Offices, Anonymized Pan-India Read-only access to analytical
+Independent Researchers views, execution of NL-to-SQL
+queries with citation verification,
+export of anomaly audit trails. PII
+completely masked.
+2. Feature Prioritization MoSCoW Breakdown)
+Must-Have MVP
+● Automated LGD Harmonization Engine: Ingests CSV/JSON data from 3 schemes and
+resolves entity names against canonical LGD codes.
+● Unified Cross-Scheme Data Model: Harmonized schema linking Ministries, Schemes,
+Budgets, Implementations, and Outcomes.
+● Executive Cross-Ministry Dashboard: Interactive choropleth map India → State →
+District), key performance metric cards Fund Allocated, Released, Utilized, Beneficiary
+Count).
+● Scheme Overlap & Gap Matrix: Automated identification of duplicate benefit profiles
+(e.g., high MGNREGA work demand overlapping with stalled PMAYG construction in
+the same block).
+● Natural Language Query Interface NL-to-SQL Conversational AI interface backed by
+schema-aware LLM agents, outputting verified SQL with source-data citations.
+● Granular PostgreSQL Row-Level Security RLS Administrative boundary isolation
+based on authenticated JWT session claims.
+
+--- Page 3 ---
+Should-Have Phase 2
+● Underperformance Anomaly Detector: Automated Z-score analysis flagging districts
+where fund release vs. physical asset completion deviates by > 2 standard deviations
+from state median.
+● Traceable Evidence Drawer: Deep-dive modal showing exact underlying database
+rows and calculation formulas supporting an AI-generated insight.
+● PDF Executive Brief Generator: Automated scheduled generation of monthly
+convergence briefs for Cabinet Secretariat.
+Could-Have Phase 3
+● Predictive Resource Reallocation Simulator: "What-if" scenario builder forecasting
+asset creation if underutilized funds from Scheme X are redirected to Scheme Y.
+● Multilingual Query Interface: Prompting and dashboards localized in Hindi and major
+regional languages.
+Wonʼt-Have Out of Scope for MVP
+● Direct write-back integration into PFMS Public Financial Management System) to
+release funds.
+● Public-facing citizen grievance ticketing portal.
+● Live biometrics processing or raw Aadhaar data storage.
+3. User Stories & Acceptance Criteria
+US01 Cross-Ministry Overlap & Convergence Analysis
+● As a Central Executive Cabinet Secretariat),
+● I want to view an interactive overlap matrix of MGNREGA asset creation and PMAYG
+rural housing completion by district,
+● So that I can identify administrative blocks with high wage disbursement but lagging
+housing infrastructure.
+Acceptance Criteria
+● Given that the user has selected financial year 2025-2026 and filtered by the state of
+Odisha,
+● When they navigate to the "Convergence & Overlap" view,
+● Then the platform renders a bivariate choropleth map highlighting districts with 80%
+MGNREGA fund utilization alongside 40% PMAYG milestone completion,
+● And provides an exportable summary table listing the specific District LGD codes and
+responsible state nodal departments.
+
+--- Page 4 ---
+US02 Traceable Natural Language Querying
+● As an Evaluation Analyst,
+● I want to type a plain-language question such as "Show me districts where PMKISAN
+cash transfer disbursement exceeds 90% but fertilizer subsidy intake dropped in Q3",
+● So that I do not have to write custom SQL joins across heterogeneous departmental
+schemas.
+Acceptance Criteria
+● Given an authenticated session with Analyst permissions,
+● When the query is submitted in the NLP query input box,
+● Then the system outputs a synthesized data card with an interactive visualization,
+● And displays an inspectable "Evidence & Provenance" tab showing the generated SQL
+query, execution latency, and exact source tables (pm_kisan_disbursements,
+fert_subsidy_records) utilized.
+US03 Geographic Underperformance Anomaly Flagging
+● As a District Magistrate,
+● I want to receive automated alerts when any centrally sponsored scheme in my district
+stalls for more than 45 days,
+● So that I can direct Block Development Officers BDOs to unblock administrative
+bottlenecks.
+Acceptance Criteria
+● Given that the DM is logged in with LGD claim DISTRICT_2704 (e.g., Gorakhpur),
+● When a background ingestion pipeline detects zero physical progress updates for
+PMAYG house sanctions over a 45-day window,
+● Then an anomaly badge is rendered on the DM's dashboard marked CRITICAL:
+Stalled Milestone,
+● And clicking the badge displays the exact Gram Panchayats affected and the contact
+information of the assigned block engineer.
