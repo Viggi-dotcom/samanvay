@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { SovereignTricolorRibbon } from "./ashoka-emblem";
@@ -17,33 +17,50 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F6F9] text-gray-900 antialiased">
       {/* National Tricolor Stripe */}
       <SovereignTricolorRibbon height="h-1.5" />
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:block sticky top-0 h-[calc(100vh-6px)]">
+        <div className="hidden lg:block sticky top-0 h-[calc(100vh-6px)] shrink-0">
           <Sidebar />
         </div>
 
-        {/* Mobile drawer */}
-        {mobileOpen && (
-          <>
-            <div
-              className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity"
-              onClick={() => setMobileOpen(false)}
-            />
-            <div className="lg:hidden fixed left-0 top-0 bottom-0 z-50 shadow-2xl">
-              <Sidebar onNavigate={() => setMobileOpen(false)} />
-            </div>
-          </>
-        )}
+        {/* Mobile drawer overlay */}
+        <div
+          className={cn(
+            "lg:hidden fixed inset-0 z-40 transition-opacity duration-300",
+            mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setMobileOpen(false)}
+          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }}
+        />
 
-        <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-          <Header onMenu={() => setMobileOpen(true)} />
-          <main className="flex-1 p-5 sm:p-6 lg:p-8 max-w-[1680px] mx-auto w-full">
+        {/* Mobile drawer panel */}
+        <div
+          className={cn(
+            "lg:hidden fixed left-0 top-0 bottom-0 z-50 shadow-2xl transition-transform duration-300 ease-in-out",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <Sidebar onNavigate={() => setMobileOpen(false)} />
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Header onMenu={() => setMobileOpen((v) => !v)} />
+          <main className="flex-1 p-4 sm:p-5 lg:p-7 max-w-[1680px] mx-auto w-full">
             {children}
           </main>
         </div>

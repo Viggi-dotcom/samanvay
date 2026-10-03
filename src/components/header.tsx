@@ -61,7 +61,7 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
   const [userOpen, setUserOpen] = useState(false);
 
   return (
-    <header className="h-18 bg-white border-b border-gray-200 flex items-center justify-between gap-4 px-5 lg:px-8 sticky top-0 z-30 shadow-xs">
+    <header className="min-h-[4rem] bg-white border-b border-gray-200 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 lg:px-8 sticky top-0 z-30 shadow-xs">
       {/* Mobile menu & Brand */}
       <div className="flex items-center gap-3">
         <button
@@ -72,16 +72,16 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center gap-3">
-          <AshokaEmblem size="sm" variant="navy" showMotto={true} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <AshokaEmblem size="sm" variant="navy" showMotto={false} />
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold leading-none">
+            <div className="hidden sm:block text-[10px] uppercase tracking-wider text-gray-500 font-semibold leading-none">
               भारत सरकार · Government of India
             </div>
             <div className="text-sm font-bold text-gray-900 tracking-tight mt-0.5 leading-none">
-              समन्वय <span className="font-normal text-gray-500">|</span> SAMANVAY
+              <span className="hidden sm:inline">समन्वय </span><span className="hidden sm:inline font-normal text-gray-500">| </span>SAMANVAY
             </div>
-            <div className="text-[9px] text-[#0B4F9C] font-medium leading-none mt-1">
+            <div className="hidden md:block text-[9px] text-[#0B4F9C] font-medium leading-none mt-1">
               National Governance Convergence Portal
             </div>
           </div>
@@ -106,7 +106,7 @@ export function Header({ onMenu }: { onMenu?: () => void }) {
       </div>
 
       {/* Government Dropdowns & User Profile */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
         {/* State selector */}
         <div className="relative hidden md:block">
           <button

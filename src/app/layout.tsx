@@ -32,6 +32,12 @@ export const metadata: Metadata = {
   authors: [{ name: "Samanvay Intelligence Platform" }],
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

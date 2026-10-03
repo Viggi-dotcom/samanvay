@@ -103,7 +103,7 @@ export function SchemesDirectoryView() {
                   </div>
 
                   {/* Key metrics */}
-                  <div className="grid grid-cols-4 gap-2.5 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
                     <Metric label="Allocated" value={fmtCr(k.released + (k.released * 0.2))} />
                     <Metric label="Released" value={fmtCr(k.released)} />
                     <Metric label="Utilized" value={fmtCr(k.utilized)} />

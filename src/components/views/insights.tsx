@@ -65,7 +65,7 @@ export function InsightsView() {
       />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
         {isLoading ? (
           <div className="col-span-full h-24 rounded-lg border border-gray-200 bg-white flex items-center justify-center">
             <Loader2 className="h-5 w-5 text-[#0B4F9C] animate-spin" />
