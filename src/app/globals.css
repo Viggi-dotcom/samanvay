@@ -43,81 +43,61 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Samanvay Intelligence - Institutional Dark Governance Theme */
+/* =========================================================================
+   OFFICIAL GOVERNMENT OF INDIA WHITE PORTAL THEME
+   Guidelines for Indian Government Websites (GIGW) Compliant:
+   - High-contrast white surfaces & deep navy (#0B4F9C)
+   - Indian Saffron & India Green accents
+   - Crystal-clear legibility on all charts, tables, and badges
+   ========================================================================= */
+
 :root {
   --radius: 0.5rem;
 
-  /* Base Surfaces */
-  --background: #0B0F19;
-  --foreground: #F9FAFB;
-  --card: #111827;
-  --card-foreground: #F9FAFB;
-  --popover: #111827;
-  --popover-foreground: #F9FAFB;
+  --background: #F4F6F9;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
 
-  /* Brand & Interaction */
-  --primary: #2563EB;
-  --primary-foreground: #F9FAFB;
-  --secondary: #1F2937;
-  --secondary-foreground: #F9FAFB;
+  --primary: #0B4F9C;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
 
-  --muted: #1F2937;
-  --muted-foreground: #9CA3AF;
-  --accent: #1E3A8A;
-  --accent-foreground: #F9FAFB;
+  --muted: #E2E8F0;
+  --muted-foreground: #475569;
+  --accent: #E65100;
+  --accent-foreground: #FFFFFF;
 
-  --destructive: #DC2626;
+  --destructive: #B91C1C;
 
-  /* Borders */
-  --border: #374151;
-  --input: #1F2937;
-  --ring: #3B82F6;
+  --border: #E2E8F0;
+  --input: #FFFFFF;
+  --ring: #0B4F9C;
 
-  /* Alert States */
-  --alert-critical-text: #FCA5A5;
-  --alert-critical-bg: #7F1D1D;
-  --alert-warning-text: #FDE68A;
-  --alert-warning-bg: #78350F;
-  --alert-success-text: #86EFAC;
-  --alert-success-bg: #14532D;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #0B4F9C;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #0B4F9C;
 
-  /* Chart palette */
-  --chart-1: #2563EB;
-  --chart-2: #06B6D4;
-  --chart-3: #8B5CF6;
-  --chart-4: #F59E0B;
-  --chart-5: #EF4444;
+  --alert-critical-text: #991B1B;
+  --alert-critical-bg: #FEE2E2;
+  --alert-warning-text: #92400E;
+  --alert-warning-bg: #FEF3C7;
+  --alert-success-text: #166534;
+  --alert-success-bg: #DCFCE7;
 
-  /* Sidebar */
-  --sidebar: #0B0F19;
-  --sidebar-foreground: #F9FAFB;
-  --sidebar-primary: #2563EB;
-  --sidebar-primary-foreground: #F9FAFB;
-  --sidebar-accent: #1E3A8A;
-  --sidebar-accent-foreground: #F9FAFB;
-  --sidebar-border: #1F2937;
-  --sidebar-ring: #3B82F6;
-}
-
-.dark {
-  --background: #0B0F19;
-  --foreground: #F9FAFB;
-  --card: #111827;
-  --card-foreground: #F9FAFB;
-  --popover: #111827;
-  --popover-foreground: #F9FAFB;
-  --primary: #2563EB;
-  --primary-foreground: #F9FAFB;
-  --secondary: #1F2937;
-  --secondary-foreground: #F9FAFB;
-  --muted: #1F2937;
-  --muted-foreground: #9CA3AF;
-  --accent: #1E3A8A;
-  --accent-foreground: #F9FAFB;
-  --destructive: #DC2626;
-  --border: #374151;
-  --input: #1F2937;
-  --ring: #3B82F6;
+  --chart-1: #0B4F9C;
+  --chart-2: #E65100;
+  --chart-3: #15803D;
+  --chart-4: #6B21A8;
+  --chart-5: #B91C1C;
 }
 
 @layer base {
@@ -125,65 +105,200 @@
     @apply border-border outline-ring/50;
   }
   html, body {
-    background-color: #0B0F19;
-    color: #F9FAFB;
+    background-color: #F4F6F9;
+    color: #0F172A;
   }
   body {
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0B0F19;
+    background: #F1F5F9;
   }
   ::-webkit-scrollbar-thumb {
-    background: #374151;
+    background: #CBD5E1;
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4B5563;
+    background: #94A3B8;
   }
+}
+
+/* =========================================================================
+   BULLETPROOF TYPOGRAPHY & CONTRAST FOR OFFICIAL PORTAL
+   ========================================================================= */
+
+.bg-app {
+  background-color: #F4F6F9 !important;
+  color: #0F172A !important;
+}
+
+/* Card and elevated panels default to pure crisp white with subtle border */
+.bg-surface-elevated,
+.bg-slate-900:not(pre):not(code),
+.bg-slate-850:not(pre):not(code) {
+  background-color: #FFFFFF !important;
+  color: #0F172A;
+  border-color: #E2E8F0 !important;
+}
+
+.bg-surface-hover,
+.hover\:bg-slate-800:hover,
+.hover\:bg-slate-850:hover,
+.hover\:bg-slate-700\/70:hover,
+.hover\:bg-slate-800\/80:hover,
+.hover\:bg-slate-800\/70:hover {
+  background-color: #F1F5F9 !important;
+}
+
+.border-slate-800,
+.border-slate-800\/60,
+.border-slate-800\/80,
+.border-slate-800\/90,
+.border-slate-700,
+.border-slate-700\/60,
+.border-slate-700\/80,
+.border-subtle {
+  border-color: #E2E8F0 !important;
+}
+
+.divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #E2E8F0 !important;
+}
+
+/* Table styling */
+table thead tr {
+  background-color: #F8FAFC !important;
+  border-bottom: 2px solid #E2E8F0 !important;
+}
+table th {
+  color: #1E293B !important;
+  font-weight: 700 !important;
+}
+table td.sticky, table th.sticky {
+  background-color: #FFFFFF !important;
+}
+
+/* Headings always dark slate for maximum readability */
+h1, h2, h3, h4, h5, h6 {
+  color: #0F172A;
+}
+
+/* General text readability on light surfaces */
+body, main, .bg-white, .bg-card, .bg-app {
+  color: #0F172A;
+}
+
+/* Solid colored action buttons have white text */
+button.bg-primary,
+button[class*="bg-primary"],
+button[class*="bg-destructive"],
+button[class*="bg-blue-600"],
+button[class*="bg-blue-700"] {
+  color: #FFFFFF !important;
+}
+
+/* Code Blocks & Terminal Previews: Keep them ultra-crisp dark terminal style */
+pre,
+pre code,
+.font-mono[class*="bg-slate-950"],
+[class*="bg-slate-950"],
+[class*="bg-[#080D1A]"] {
+  background-color: #0B1120 !important;
+  border-color: #1E293B !important;
+}
+
+pre,
+pre *,
+[class*="bg-slate-950"] *,
+[class*="bg-[#080D1A]"] * {
+  color: #E2E8F0 !important;
+}
+
+pre .text-cyan-300,
+pre .text-cyan-400,
+[class*="bg-slate-950"] .text-cyan-300,
+[class*="bg-slate-950"] .text-cyan-400 {
+  color: #38BDF8 !important;
+}
+
+pre .token.keyword,
+[class*="bg-[#080D1A]"] .token.keyword {
+  color: #60A5FA !important;
+}
+
+pre .token.string,
+[class*="bg-[#080D1A]"] .token.string {
+  color: #4ADE80 !important;
+}
+
+pre .token.number,
+[class*="bg-[#080D1A]"] .token.number {
+  color: #FBBF24 !important;
+}
+
+/* Daylight High-Contrast Status Badges (GIGW Compliant) */
+.bg-red-950, .bg-red-950\/90, .bg-red-950\/80, .bg-red-950\/40, .bg-red-950\/30, .bg-red-950\/20 {
+  background-color: #FEF2F2 !important;
+  border-color: #FECACA !important;
+  color: #991B1B !important;
+}
+
+.bg-amber-950, .bg-amber-950\/90, .bg-amber-950\/80, .bg-amber-950\/40, .bg-amber-950\/30, .bg-amber-950\/20 {
+  background-color: #FFFBEB !important;
+  border-color: #FDE68A !important;
+  color: #92400E !important;
+}
+
+.bg-emerald-950, .bg-emerald-950\/90, .bg-emerald-950\/80, .bg-emerald-950\/40, .bg-emerald-950\/30, .bg-emerald-950\/20 {
+  background-color: #F0FDF4 !important;
+  border-color: #BBF7D0 !important;
+  color: #166534 !important;
+}
+
+.bg-blue-950, .bg-blue-950\/90, .bg-blue-950\/80, .bg-blue-950\/60, .bg-blue-950\/40, .bg-blue-950\/30 {
+  background-color: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+  color: #0B4F9C !important;
+}
+
+/* Light surface text contrast */
+.bg-white .text-slate-400,
+.bg-white .text-gray-400,
+.bg-card .text-slate-400,
+.bg-card .text-gray-400 {
+  color: #475569;
+}
+
+.bg-white .text-slate-300,
+.bg-white .text-gray-300,
+.bg-card .text-slate-300,
+.bg-card .text-gray-300 {
+  color: #334155;
+}
+
+/* Form inputs */
+input, select, textarea {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* National Tricolor Stripe */
+.sovereign-ribbon {
+  background: linear-gradient(90deg, #FF9933 0%, #FF9933 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #138808 66.6%, #138808 100%);
 }
 
 @layer utilities {
   .text-mono {
     font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
-  }
-  .text-tertiary {
-    color: #6B7280;
-  }
-  .text-secondary-muted {
-    color: #9CA3AF;
-  }
-  .bg-app {
-    background-color: #0B0F19;
-  }
-  .bg-surface-elevated {
-    background-color: #111827;
-  }
-  .bg-surface-hover {
-    background-color: #1F2937;
-  }
-  .border-subtle {
-    border-color: #374151;
-  }
-  .shimmer {
-    background: linear-gradient(90deg, #1F2937 0%, #374151 50%, #1F2937 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-  @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-  .glow-cyan {
-    box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3), 0 0 24px rgba(6, 182, 212, 0.15);
-  }
-  .glow-primary {
-    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 0 24px rgba(37, 99, 235, 0.15);
   }
 }

@@ -158,3 +158,24 @@ model NlQueryLog {
   role            String
   createdAt       DateTime @default(now())
 }
+
+model InterventionDirective {
+  id                    String   @id @default(cuid())
+  refNumber             String   @unique // e.g. OM/CABSEC/CONVERGENCE/2026/042
+  title                 String
+  targetStateLgd        Int
+  stateName             String
+  targetDistrictLgd     Int?
+  districtName          String?
+  targetMinistries      String   // comma-separated e.g. "MoRD, MoA&FW"
+  participatingOfficers String
+  triggerAnomalyId      String?
+  evidenceSummary       String
+  directives            String   // JSON-stringified array of action steps [{step: 1, action: "...", nodal: "..."}]
+  status                String   @default("ISSUED") // DRAFT | ISSUED | IN_PROGRESS | COMPLIANCE_RECEIVED | CLOSED
+  priority              String   @default("HIGH")   // CRITICAL | HIGH | MEDIUM
+  issuedByRole          String
+  issuedByEmail         String
+  issuedAt              DateTime @default(now())
+  deadlineDays          Int      @default(30)
+}

@@ -3,16 +3,17 @@
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Shield, Lock, Building2, ChevronRight, Globe2, Loader2, AlertCircle } from "lucide-react";
+import { Lock, Building2, ChevronRight, Globe2, Loader2, AlertCircle, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { AshokaEmblem, SovereignTricolorRibbon } from "./ashoka-emblem";
 import { cn } from "@/lib/utils";
 
 const DEMO_USERS = [
-  { email: "r.kumar@cabsec.gov.in", label: "Central Executive Secretary", org: "Cabinet Secretariat, NITI Aayog", scope: "Pan-India, Cross-Ministry", role: "central_executive" },
-  { email: "v.nair@mord.gov.in", label: "Department Nodal Officer (MoRD)", org: "Joint Secretary / Director", scope: "Ministry-Scoped (MoRD)", role: "dept_nodal" },
-  { email: "anjali.dm-gorakhpur@up.gov.in", label: "District Magistrate — Gorakhpur", org: "District Collector, LGD 463", scope: "District-Specific", role: "district_magistrate" },
-  { email: "p.iyer@cag.gov.in", label: "Auditor / Research Analyst", org: "CAG, Independent Researchers", scope: "Anonymized Pan-India", role: "auditor" },
-  { email: "arjun.nic@gov.in", label: "Super Admin (NIC)", org: "Platform Engineering / NIC Admin", scope: "Global System-wide", role: "super_admin" },
+  { email: "r.kumar@cabsec.gov.in", label: "Cabinet Secretary", org: "Cabinet Secretariat, Government of India", scope: "Pan-India, All Ministries", role: "central_executive", badge: "CABSEC" },
+  { email: "v.nair@mord.gov.in", label: "Joint Secretary / Nodal Officer", org: "Ministry of Rural Development (MoRD)", scope: "Ministry-Scoped (MoRD)", role: "dept_nodal", badge: "MoRD" },
+  { email: "anjali.dm-gorakhpur@up.gov.in", label: "District Magistrate", org: "District Administration, Gorakhpur (UP)", scope: "District-Specific (LGD 463)", role: "district_magistrate", badge: "UP-LGD" },
+  { email: "p.iyer@cag.gov.in", label: "Principal Auditor", org: "Comptroller and Auditor General of India (CAG)", scope: "National Audit & Evaluation", role: "auditor", badge: "CAG" },
+  { email: "arjun.nic@gov.in", label: "System Administrator", org: "National Informatics Centre (NIC)", scope: "Platform Administration", role: "super_admin", badge: "NIC" },
 ];
 
 export function LoginScreen() {
@@ -24,7 +25,6 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // If session becomes available, force refresh + push to overview
   useEffect(() => {
     if (status === "authenticated" && session) {
       router.refresh();
@@ -44,188 +44,191 @@ export function LoginScreen() {
       });
       setLoading(false);
       if (result?.error) {
-        setError("Authentication failed — check credentials and try again. (Demo password: demo123)");
+        setError("Invalid credentials. Please select a designated official and try again.");
       } else if (result?.ok) {
-        // Force a hard refresh so useSession picks up the new cookie
-        // (especially important for cross-origin preview scenarios)
         router.refresh();
-        // Fallback: if router.refresh doesn't immediately update useSession,
-        // a soft reload guarantees the session is loaded
         setTimeout(() => router.refresh(), 200);
       } else {
-        setError("Unexpected response from auth provider.");
+        setError("Unable to authenticate with Government Single Sign-On.");
       }
     } catch (err: any) {
       setLoading(false);
-      setError("Network error: " + (err?.message ?? "unknown"));
+      setError("Network connectivity error: " + (err?.message ?? "unknown"));
     }
   }
 
   return (
-    <div className="min-h-screen bg-app flex flex-col lg:flex-row">
-      {/* Left: Brand panel */}
-      <div className="lg:w-1/2 flex flex-col justify-between p-8 lg:p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 25% 30%, #2563EB 0, transparent 40%), radial-gradient(circle at 80% 70%, #06B6D4 0, transparent 40%)",
-          }}
-        />
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-900/40">
-            <Shield className="h-6 w-6 text-white" />
-          </div>
+    <div className="min-h-screen bg-[#F4F6F9] text-gray-900 flex flex-col antialiased">
+      <SovereignTricolorRibbon height="h-2" />
+
+      {/* Top Government Masthead */}
+      <div className="bg-white border-b border-gray-200 py-3.5 px-6 lg:px-12 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-4">
+          <AshokaEmblem size="sm" variant="navy" showMotto={true} />
           <div>
-            <div className="text-sm font-semibold tracking-wide text-white">
-              Samanvay Intelligence
+            <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">
+              भारत सरकार · Government of India
             </div>
-            <div className="text-xs text-secondary-muted">
-              AI-Powered Governance Intelligence Platform
+            <div className="text-base font-bold text-gray-900 tracking-tight leading-tight">
+              मंत्रिमण्डल सचिवालय · CABINET SECRETARIAT
+            </div>
+            <div className="text-xs text-[#0B4F9C] font-semibold">
+              समन्वय (SAMANVAY) — National Governance Convergence Platform
             </div>
           </div>
         </div>
 
-        <div className="relative z-10 my-12 lg:my-0">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800/60 text-xs text-cyan-300 mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            Anchored on canonical LGD codes · India
-          </div>
-          <h1 className="text-3xl lg:text-4xl font-bold leading-tight text-white mb-4">
-            Cross-scheme convergence
-            <br />
-            intelligence for{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-              governance
-            </span>{" "}
-            outcomes
-          </h1>
-          <p className="text-secondary-muted text-base max-w-md leading-relaxed">
-            Production-grade platform integrating MGNREGA, PM-KISAN and PMAY-G
-            implementation data with anomaly detection, traceable NL-to-SQL
-            querying, and Row-Level Security scoped to your LGD jurisdiction.
-          </p>
-
-          <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
-            {[
-              { icon: Building2, label: "3 Schemes", sub: "MGNREGA · PM-KISAN · PMAY-G" },
-              { icon: Globe2, label: "24 States", sub: "66 LGD districts ingested" },
-              { icon: Lock, label: "JWT-scoped RLS", sub: "Server-side enforced" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-lg border border-subtle bg-surface-elevated p-3">
-                <s.icon className="h-4 w-4 text-cyan-400 mb-2" />
-                <div className="text-xs font-semibold text-white">{s.label}</div>
-                <div className="text-[10px] text-secondary-muted leading-tight mt-0.5">{s.sub}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative z-10 text-[11px] text-tertiary">
-          Government of India · Restricted access. All actions logged under
-          CAG-compliant audit trail.
+        <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
+          <ShieldCheck className="h-4 w-4 text-[#0B4F9C]" />
+          <span>National Single Sign-On (MeriPehchaan Protocol)</span>
         </div>
       </div>
 
-      {/* Right: Auth form */}
-      <div className="lg:w-1/2 bg-surface-elevated border-l border-subtle flex items-center justify-center p-6 lg:p-12">
-        <form onSubmit={handleSubmit} className="w-full max-w-xl">
-          <div className="mb-6">
-            <div className="text-xs uppercase tracking-widest text-cyan-400 mb-2">
-              Multi-factor Government SSO
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-1">
-              Sign in to your session
-            </h2>
-            <p className="text-sm text-secondary-muted">
-              Authenticated via NextAuth credentials provider → JWT with role +
-              LGD claims. Pick a demo user below.
-            </p>
+      <div className="flex-1 flex flex-col lg:flex-row max-w-6xl mx-auto w-full p-6 lg:p-10 items-center justify-center gap-10">
+        {/* Left: Official Overview Information */}
+        <div className="lg:w-1/2 space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-[#0B4F9C]">
+            <span className="h-2 w-2 rounded-full bg-[#0B4F9C]" />
+            Official Monitoring & Convergence Portal
           </div>
 
-          {/* Demo user picker */}
-          <div className="mb-4">
-            <label className="text-[10px] uppercase tracking-wider text-tertiary mb-1.5 block">
-              Select demo persona
-            </label>
-            <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-              {DEMO_USERS.map((u) => (
-                <button
-                  key={u.email}
-                  type="button"
-                  onClick={() => setSelectedEmail(u.email)}
-                  className={cn(
-                    "w-full text-left rounded-lg border p-2.5 transition-all",
-                    selectedEmail === u.email
-                      ? "border-blue-500 bg-blue-950/30 ring-1 ring-blue-500"
-                      : "border-subtle bg-app hover:border-blue-600/50 hover:bg-surface-hover"
-                  )}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className={cn(
-                      "h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[10px] font-mono font-semibold",
-                      selectedEmail === u.email ? "bg-blue-600 text-white" : "bg-surface-hover text-secondary-muted"
-                    )}>
-                      {u.role.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white">{u.label}</div>
-                      <div className="text-[11px] text-secondary-muted">{u.org}</div>
-                      <div className="text-[10px] text-tertiary font-mono mt-0.5">{u.email}</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight leading-snug">
+            Cross-Scheme Governance Convergence & Implementation Analytics
+          </h1>
+
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Integrating implementation data across Centrally Sponsored Schemes
+            (MGNREGA, PM-KISAN, PMAY-G) anchored on standard Local Government Directory (LGD) codes
+            for unified outcomes tracking, gap detection, and inter-ministerial synergy.
+          </p>
+
+          <div className="grid grid-cols-3 gap-3.5 pt-2">
+            {[
+              { icon: Building2, label: "3 Flagship Schemes", sub: "MGNREGA · PM-KISAN · PMAY-G" },
+              { icon: Globe2, label: "24 States & UTs", sub: "66 LGD Districts" },
+              { icon: ShieldCheck, label: "Role-Based Access", sub: "Jurisdiction-Scoped" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border border-gray-200 bg-white p-3.5 shadow-xs">
+                <s.icon className="h-4 w-4 text-[#0B4F9C] mb-1.5" />
+                <div className="text-xs font-bold text-gray-900">{s.label}</div>
+                <div className="text-[10px] text-gray-500 leading-tight mt-0.5">{s.sub}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Password */}
-          <div className="mb-4">
-            <label className="text-[10px] uppercase tracking-wider text-tertiary mb-1.5 block">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-10 px-3 rounded-md bg-app border border-subtle text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
-              autoComplete="current-password"
-            />
-            <div className="text-[10px] text-tertiary mt-1">Demo password: <code className="font-mono">demo123</code></div>
+          <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+            For authorized official use only. System access is monitored by the National Informatics Centre (NIC).
           </div>
+        </div>
 
-          {error && (
-            <div className="mb-4 rounded-md bg-red-950/40 border border-red-900/60 p-3 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-red-300">{error}</div>
+        {/* Right: Clean White Government Sign In Card */}
+        <div className="lg:w-1/2 w-full max-w-md bg-white rounded-xl border border-gray-200 p-6 lg:p-8 shadow-sm">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">
+                Official Sign-In
+              </h2>
+              <p className="text-xs text-gray-500">
+                Select your designated official profile below to proceed.
+              </p>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Authenticating...
-              </>
-            ) : (
-              <>
-                <Lock className="h-4 w-4" />
-                Sign in via Government SSO
-                <ChevronRight className="h-4 w-4" />
-              </>
+            {/* Official Persona List */}
+            <div className="mb-4">
+              <label className="text-[11px] uppercase tracking-wider text-gray-500 font-bold mb-1.5 block">
+                Designated Official Profiles
+              </label>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {DEMO_USERS.map((u) => {
+                  const isSelected = selectedEmail === u.email;
+                  return (
+                    <button
+                      key={u.email}
+                      type="button"
+                      onClick={() => setSelectedEmail(u.email)}
+                      className={cn(
+                        "w-full text-left rounded-lg border p-2.5 transition-all flex items-start gap-2.5 cursor-pointer",
+                        isSelected
+                          ? "border-[#0B4F9C] bg-blue-50/60 ring-1 ring-[#0B4F9C]"
+                          : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "h-8 w-8 shrink-0 rounded flex items-center justify-center text-[10px] font-bold font-mono",
+                          isSelected
+                            ? "bg-[#0B4F9C] text-white"
+                            : "bg-gray-100 text-gray-700"
+                        )}
+                      >
+                        {u.badge}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className={cn("text-xs font-bold text-gray-900", isSelected && "text-[#0B4F9C]")}>
+                            {u.label}
+                          </span>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 text-[#0B4F9C] shrink-0" />}
+                        </div>
+                        <div className="text-[11px] text-gray-600 truncate">{u.org}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Password input */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] uppercase tracking-wider text-gray-500 font-bold">
+                  Security Passcode
+                </label>
+                <span className="text-[10px] text-gray-500">
+                  Demo Passcode: <code className="font-mono text-[#0B4F9C] font-bold">demo123</code>
+                </span>
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:outline-none focus:border-[#0B4F9C] focus:ring-1 focus:ring-[#0B4F9C] font-mono"
+                autoComplete="current-password"
+              />
+            </div>
+
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-2.5 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-red-700">{error}</div>
+              </div>
             )}
-          </button>
 
-          <div className="mt-4 flex items-center justify-between text-[11px] text-tertiary">
-            <span>Session secured by NextAuth · JWT 8h · RLS server-side</span>
-            <span className="font-mono">v1.0.0-prod</span>
-          </div>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-10.5 rounded-lg bg-[#0B4F9C] hover:bg-[#093E7A] text-white text-xs uppercase tracking-wider font-bold transition-all shadow-xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Authenticating...
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4" />
+                  Sign In to Portal
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+
+            <div className="mt-4 text-center text-[10px] text-gray-500 font-medium">
+              Government of India · Protected by National Informatics Centre
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
 }
-

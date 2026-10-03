@@ -8,13 +8,12 @@ import {
   Building2,
   Brain,
   AlertTriangle,
-  Settings,
   Users,
   Database,
-  Shield,
   ChevronRight,
   FlaskConical,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { useApp, type ViewId } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -25,21 +24,22 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   group: string;
-  roles?: Role[]; // if set, restrict
+  roles?: Role[];
 }
 
 const NAV: NavItem[] = [
-  { id: "overview", label: "Executive Command Center", icon: LayoutDashboard, group: "Intelligence" },
-  { id: "insights", label: "AI Insight Engine", icon: Sparkles, group: "Intelligence" },
-  { id: "convergence-matrix", label: "Convergence Matrix", icon: GitMerge, group: "Intelligence" },
-  { id: "convergence-compare", label: "Scheme Comparison", icon: GitMerge, group: "Intelligence" },
-  { id: "simulator", label: "Convergence Simulator", icon: FlaskConical, group: "Intelligence" },
-  { id: "geo-national", label: "National Geo View", icon: Globe2, group: "Geographic" },
-  { id: "schemes-directory", label: "Scheme Directory", icon: Building2, group: "Schemes" },
-  { id: "intelligence-query", label: "NL Query Workbench", icon: Brain, group: "AI Reasoning" },
-  { id: "intelligence-alerts", label: "Anomaly Alerts", icon: AlertTriangle, group: "AI Reasoning" },
-  { id: "admin-pipelines", label: "ETL Pipelines", icon: Database, group: "Admin", roles: ["super_admin"] },
-  { id: "admin-users", label: "User Provisioning", icon: Users, group: "Admin", roles: ["super_admin"] },
+  { id: "overview", label: "Executive Dashboard", icon: LayoutDashboard, group: "National Analytics" },
+  { id: "insights", label: "Scheme Intelligence", icon: Sparkles, group: "National Analytics" },
+  { id: "convergence-matrix", label: "Convergence Matrix", icon: GitMerge, group: "National Analytics" },
+  { id: "convergence-compare", label: "Scheme Comparison", icon: GitMerge, group: "National Analytics" },
+  { id: "simulator", label: "Resource Simulator", icon: FlaskConical, group: "Planning & Policy" },
+  { id: "directives", label: "Action Directives", icon: FileText, group: "Planning & Policy" },
+  { id: "geo-national", label: "Geographical Coverage", icon: Globe2, group: "Geographic View" },
+  { id: "schemes-directory", label: "Schemes Directory", icon: Building2, group: "Scheme Monitoring" },
+  { id: "intelligence-query", label: "Natural Language Query", icon: Brain, group: "Decision Support" },
+  { id: "intelligence-alerts", label: "Implementation Alerts", icon: AlertTriangle, group: "Decision Support" },
+  { id: "admin-pipelines", label: "Data Pipelines", icon: Database, group: "System Administration", roles: ["super_admin"] },
+  { id: "admin-users", label: "User Management", icon: Users, group: "System Administration", roles: ["super_admin"] },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -47,13 +47,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const setView = useApp((s) => s.setView);
   const { data: session } = useSession();
   const role = (session?.user as any)?.role as Role | undefined;
-  const alertsCount = 7; // surfaced from /api/anomalies in production
+  const alertsCount = 7;
 
   const filtered = NAV.filter(
     (n) => !n.roles || (role && n.roles.includes(role))
   );
 
-  // group nav items
   const groups: { name: string; items: NavItem[] }[] = [];
   for (const item of filtered) {
     let g = groups.find((x) => x.name === item.group);
@@ -65,33 +64,15 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   return (
-    <aside className="w-[260px] shrink-0 bg-app border-r border-subtle flex flex-col h-full">
-      {/* Brand */}
-      <div className="px-4 h-14 flex items-center gap-2.5 border-b border-subtle">
-        <div className="h-8 w-8 rounded-md bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow">
-          <Shield className="h-4 w-4 text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white leading-none">
-            Samanvay
-          </div>
-          <div className="text-[10px] text-secondary-muted mt-0.5">
-            Governance Intelligence
-          </div>
-        </div>
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-900/60">
-          MVP
-        </span>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3">
+    <aside className="w-[270px] shrink-0 bg-white border-r border-gray-200 flex flex-col h-full shadow-xs">
+      {/* Navigation Groups */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
         {groups.map((g) => (
-          <div key={g.name} className="mb-4">
-            <div className="px-4 mb-1.5 text-[10px] uppercase tracking-widest text-tertiary font-semibold">
+          <div key={g.name} className="space-y-1">
+            <div className="px-3 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
               {g.name}
             </div>
-            <div className="px-2 space-y-0.5">
+            <div className="space-y-0.5 pt-0.5">
               {g.items.map((item) => {
                 const active = view === item.id;
                 return (
@@ -102,28 +83,28 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onNavigate?.();
                     }}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-md text-sm transition-colors",
+                      "w-full flex items-center gap-2.5 px-3 h-9.5 rounded text-xs font-medium transition-all text-left",
                       active
-                        ? "bg-blue-950/50 text-white border border-blue-800/40"
-                        : "text-secondary-muted hover:bg-surface-hover hover:text-white border border-transparent"
+                        ? "bg-blue-50 text-[#0B4F9C] font-semibold border-l-3 border-[#0B4F9C]"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-3 border-transparent"
                     )}
                   >
                     <item.icon
                       className={cn(
                         "h-4 w-4 shrink-0",
-                        active ? "text-cyan-400" : "text-tertiary"
+                        active ? "text-[#0B4F9C]" : "text-gray-500"
                       )}
                     />
-                    <span className="flex-1 text-left truncate">
+                    <span className="flex-1 truncate">
                       {item.label}
                     </span>
                     {item.id === "intelligence-alerts" && alertsCount > 0 && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-950 text-red-300 border border-red-900/60">
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 border border-red-200">
                         {alertsCount}
                       </span>
                     )}
                     {active && (
-                      <ChevronRight className="h-3 w-3 text-blue-400" />
+                      <ChevronRight className="h-3.5 w-3.5 text-[#0B4F9C] shrink-0" />
                     )}
                   </button>
                 );
@@ -133,18 +114,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      {/* Footer: env status */}
-      <div className="p-3 border-t border-subtle">
-        <div className="rounded-md bg-surface-elevated border border-subtle p-2.5">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-medium text-white">
-              Environment: Production
-            </span>
-          </div>
-          <div className="text-[10px] text-tertiary font-mono">
-            supabase-prod · n8n-railway · fastapi-orc
-          </div>
+      {/* Official Government Footer */}
+      <div className="p-3.5 border-t border-gray-200 bg-gray-50 text-[11px] text-gray-600 space-y-0.5">
+        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-green-600" />
+          Cabinet Secretariat, GoI
+        </div>
+        <div className="text-[10px] text-gray-500">
+          Powered by National Informatics Centre (NIC)
         </div>
       </div>
     </aside>

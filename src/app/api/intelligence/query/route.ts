@@ -77,32 +77,31 @@ export async function POST(req: NextRequest) {
 
   try {
     // ---- Stage 1: LLM generation ----
-    const zai = await ZAI.create();
-    const genCompletion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: SCHEMA_CONTEXT },
-        {
-          role: "user",
-          content: `User role: ${claims.role}\nAuthorized scope: ${scopeDescription}\nFinancial year: ${currentFilters.fy ?? "2025-2026"}\n\nUser question: "${prompt}"\n\nGenerate the SQL query and rationale. Remember: respond with strict JSON only.`,
-        },
-      ],
-      thinking: { type: "disabled" },
-    });
-
-    const rawLlmResponse = genCompletion.choices[0]?.message?.content ?? "";
-
-    // Parse the JSON response (LLMs sometimes wrap in markdown)
     let generatedSql = "";
     let rationale = "";
+
     try {
+      const zai = await ZAI.create();
+      const genCompletion = await zai.chat.completions.create({
+        messages: [
+          { role: "assistant", content: SCHEMA_CONTEXT },
+          {
+            role: "user",
+            content: `User role: ${claims.role}\nAuthorized scope: ${scopeDescription}\nFinancial year: ${currentFilters.fy ?? "2025-2026"}\n\nUser question: "${prompt}"\n\nGenerate the SQL query and rationale. Remember: respond with strict JSON only.`,
+          },
+        ],
+        thinking: { type: "disabled" },
+      });
+
+      const rawLlmResponse = genCompletion.choices[0]?.message?.content ?? "";
       const jsonMatch = rawLlmResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         generatedSql = parsed.sql ?? "";
         rationale = parsed.rationale ?? "";
       }
-    } catch {
-      // fall through to fallback
+    } catch (e: any) {
+      // If LLM SDK or API is unavailable, fall back to template SQL
     }
 
     // Fallback: if LLM didn't return parseable SQL, use template

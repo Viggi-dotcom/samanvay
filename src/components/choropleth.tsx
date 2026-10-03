@@ -33,14 +33,13 @@ interface ChoroplethProps {
   loading?: boolean;
 }
 
-// India bounds (rough): lon 68-97, lat 8-37
+// India bounds: lon 68-97, lat 8-37
 const INDIA_BOUNDS = { minLon: 67, maxLon: 98, minLat: 6, maxLat: 37.5 };
 const VIEW_W = 800;
 const VIEW_H = 680;
 
 function project(lon: number, lat: number): [number, number] {
   const x = ((lon - INDIA_BOUNDS.minLon) / (INDIA_BOUNDS.maxLon - INDIA_BOUNDS.minLon)) * VIEW_W;
-  // Invert Y because SVG y grows downward
   const y = VIEW_H - ((lat - INDIA_BOUNDS.minLat) / (INDIA_BOUNDS.maxLat - INDIA_BOUNDS.minLat)) * VIEW_H;
   return [x, y];
 }
@@ -55,7 +54,6 @@ function ringToPath(coords: number[][]): string {
 }
 
 function polygonToPath(coords: number[][][][]): string {
-  // MultiPolygon: array of polygons, each polygon = array of rings
   return coords.map((polygon) => polygon.map((ring) => ringToPath(ring)).join(" ")).join(" ");
 }
 
@@ -71,16 +69,20 @@ function geometryToPath(geom: any): string {
 }
 
 function colorFor(v: number) {
-  if (v < 40) return "#7F1D1D";
-  if (v < 55) return "#B45309";
-  if (v < 70) return "#A16207";
-  if (v < 85) return "#15803D";
-  return "#14532D";
+  if (v < 40) return "#EF4444";
+  if (v < 55) return "#F97316";
+  if (v < 70) return "#EAB308";
+  if (v < 85) return "#22C55E";
+  return "#15803D";
 }
 
 interface IndiaFeature {
   type: string;
-  properties: { name: string; lgd_code: number };
+  properties: {
+    name: string;
+    lgd_code: number;
+    [k: string]: any;
+  };
   geometry: any;
   path: string;
 }
@@ -93,7 +95,7 @@ export function Choropleth({
   schemeCode,
   onSelectState,
   onSelectDistrict,
-  height = 520,
+  height = 540,
   loading,
 }: ChoroplethProps) {
   const [hover, setHover] = useState<{
@@ -104,29 +106,15 @@ export function Choropleth({
     y: number;
   } | null>(null);
 
-  // Load India GeoJSON statically (public/geo/india-states.geojson)
   const [geoJson, setGeoJson] = useState<any>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
     fetch("/geo/india-states.geojson")
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled) setGeoJson(data);
-      })
-      .catch((e) => {
-        if (!cancelled) setGeoError(e.message);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((r) => r.json())
+      .then((d) => setGeoJson(d))
+      .catch((err) => console.error("Failed to load India GeoJSON:", err));
   }, []);
 
-  // Build features with computed SVG paths
   const features: IndiaFeature[] = useMemo(() => {
     if (!geoJson?.features) return [];
     return geoJson.features.map((f: any) => ({
@@ -143,21 +131,17 @@ export function Choropleth({
     const stateMap = new Map(stateData.map((s) => [s.lgd_code, s]));
 
     return (
-      <div className="relative w-full" style={{ height }}>
+      <div className="relative w-full bg-[#F8FAFC]" style={{ height }}>
         <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <radialGradient id="bg-glow" cx="50%" cy="40%" r="60%">
-              <stop offset="0%" stopColor="#111827" stopOpacity="1" />
-              <stop offset="100%" stopColor="#0B0F19" stopOpacity="1" />
-            </radialGradient>
-            <filter id="state-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="1" stdDeviation="0.5" floodColor="#000" floodOpacity="0.5" />
+            <filter id="state-shadow" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="1" stdDeviation="0.5" floodColor="#000000" floodOpacity="0.08" />
             </filter>
           </defs>
-          <rect width={VIEW_W} height={VIEW_H} fill="url(#bg-glow)" />
+          <rect width={VIEW_W} height={VIEW_H} fill="#F8FAFC" />
 
-          {/* Subtle grid */}
-          <g opacity="0.04" stroke="#374151" strokeWidth="0.5">
+          {/* Clean government grid */}
+          <g opacity="0.4" stroke="#E2E8F0" strokeWidth="0.5">
             {Array.from({ length: 16 }).map((_, i) => (
               <line key={`v${i}`} x1={i * 50} y1="0" x2={i * 50} y2={VIEW_H} />
             ))}
@@ -166,39 +150,34 @@ export function Choropleth({
             ))}
           </g>
 
-          <text x="20" y="28" fill="#9CA3AF" fontSize="11" fontFamily="monospace">
-            INDIA · {features.length || 0} STATES/UTs
+          <text x="20" y="28" fill="#475569" fontSize="11" fontWeight="700">
+            PAN-INDIA SPATIAL COVERAGE
           </text>
-          <text x="20" y="46" fill="#6B7280" fontSize="9" fontFamily="monospace">
-            {schemeCode ? `SCHEME FILTER: ${schemeCode}` : "ALL SCHEMES · FY 2025-2026"}
+          <text x="20" y="44" fill="#64748B" fontSize="10">
+            {schemeCode ? `Scheme Filter: ${schemeCode}` : "All Centrally Sponsored Schemes"}
           </text>
 
           {loading && !geoJson && (
-            <text x={VIEW_W / 2} y={VIEW_H / 2} textAnchor="middle" fill="#6B7280" fontSize="11" fontFamily="monospace">
-              loading India boundary…
+            <text x={VIEW_W / 2} y={VIEW_H / 2} textAnchor="middle" fill="#64748B" fontSize="11">
+              Loading boundary data…
             </text>
           )}
 
-          {geoError && (
-            <text x={VIEW_W / 2} y={VIEW_H / 2} textAnchor="middle" fill="#EF4444" fontSize="10" fontFamily="monospace">
-              geojson error: {geoError}
-            </text>
-          )}
-
-          {/* India state polygons */}
-          {features.map((f) => {
+          {/* Render state paths */}
+          {features.map((f, idx) => {
             const data = stateMap.get(f.properties.lgd_code);
-            const v = data?.metrics.util ?? 0;
-            const fill = data ? colorFor(v) : "#1F2937";
+            const v = data?.metrics?.util ?? 0;
+            const fill = data ? colorFor(v) : "#E2E8F0";
             const isHover = hover?.lgd === f.properties.lgd_code;
+
             return (
-              <g key={`${f.properties.lgd_code}-${f.properties.name}`}>
+              <g key={`${f.properties.lgd_code || f.properties.name || "feat"}-${idx}`}>
                 <path
                   d={f.path}
                   fill={fill}
-                  fillOpacity={isHover ? 0.95 : 0.65}
-                  stroke={isHover ? "#06B6D4" : "#0B0F19"}
-                  strokeWidth={isHover ? 1.5 : 0.5}
+                  fillOpacity={isHover ? 0.95 : 0.8}
+                  stroke={isHover ? "#0B4F9C" : "#FFFFFF"}
+                  strokeWidth={isHover ? 1.8 : 0.75}
                   className="cursor-pointer transition-all"
                   filter="url(#state-shadow)"
                   onMouseEnter={() => {
@@ -208,8 +187,8 @@ export function Choropleth({
                     setHover({
                       name: f.properties.name,
                       value: data
-                        ? `${v.toFixed(1)}% util · ₹${data.metrics.released.toFixed(0)} Cr released`
-                        : "no data ingested",
+                        ? `${v.toFixed(1)}% Utilization · ₹${data.metrics.released.toFixed(0)} Cr Released`
+                        : "No Data",
                       lgd: f.properties.lgd_code,
                       x: cx,
                       y: cy,
@@ -222,22 +201,22 @@ export function Choropleth({
             );
           })}
 
-          {/* Legend */}
-          <g transform="translate(580, 590)">
-            <rect x="0" y="0" width="200" height="80" fill="#111827" stroke="#374151" rx="6" />
-            <text x="10" y="14" fill="#9CA3AF" fontSize="9" fontFamily="monospace">
-              UTILIZATION BINS
+          {/* Official Clean White Legend */}
+          <g transform="translate(580, 560)">
+            <rect x="0" y="0" width="200" height="100" fill="#FFFFFF" stroke="#E2E8F0" rx="6" />
+            <text x="12" y="16" fill="#1E293B" fontSize="10" fontWeight="700">
+              UTILIZATION SCALE
             </text>
             {[
-              { c: "#7F1D1D", l: "<40% Critical" },
-              { c: "#B45309", l: "40-55% Low" },
-              { c: "#A16207", l: "55-70% Mid" },
-              { c: "#15803D", l: "70-85% Good" },
-              { c: "#14532D", l: ">85% Target" },
+              { c: "#EF4444", l: "< 40% (Critical Lag)" },
+              { c: "#F97316", l: "40 - 55% (Low Velocity)" },
+              { c: "#EAB308", l: "55 - 70% (Moderate)" },
+              { c: "#22C55E", l: "70 - 85% (Optimal)" },
+              { c: "#15803D", l: "> 85% (High Saturation)" },
             ].map((b, i) => (
-              <g key={i} transform={`translate(10, ${24 + i * 11})`}>
-                <rect width="10" height="7" fill={b.c} rx="1" />
-                <text x="16" y="7" fill="#9CA3AF" fontSize="9">{b.l}</text>
+              <g key={i} transform={`translate(12, ${26 + i * 14})`}>
+                <rect width="10" height="9" fill={b.c} rx="1" />
+                <text x="16" y="8" fill="#475569" fontSize="9">{b.l}</text>
               </g>
             ))}
           </g>
@@ -245,16 +224,16 @@ export function Choropleth({
 
         {hover && (
           <div
-            className="absolute pointer-events-none z-20 rounded-md bg-surface-elevated border border-blue-700/50 shadow-xl px-3 py-2"
+            className="absolute pointer-events-none z-20 rounded-lg bg-white border border-gray-300 shadow-md px-3 py-2 text-left"
             style={{
               left: `${(hover.x / VIEW_W) * 100}%`,
               top: `${(hover.y / VIEW_H) * 100}%`,
               transform: "translate(-50%, -110%)",
             }}
           >
-            <div className="text-xs font-semibold text-white">{hover.name}</div>
-            <div className="text-[10px] text-cyan-300 font-mono mt-0.5">LGD {hover.lgd}</div>
-            <div className="text-[11px] text-secondary-muted mt-1">{hover.value}</div>
+            <div className="text-xs font-bold text-gray-900">{hover.name}</div>
+            <div className="text-[10px] text-[#0B4F9C] font-semibold mt-0.5">LGD Code: {hover.lgd}</div>
+            <div className="text-[11px] text-gray-600 mt-1">{hover.value}</div>
           </div>
         )}
       </div>
@@ -265,24 +244,24 @@ export function Choropleth({
   const distData = districts ?? [];
   const stateName = STATES.find((s) => s.lgd_code === selectedStateLgd)?.entity_name;
   return (
-    <div className="relative w-full" style={{ height }}>
+    <div className="relative w-full bg-[#F8FAFC]" style={{ height }}>
       <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-        <rect width={VIEW_W} height={VIEW_H} fill="#0B0F19" />
-        <g opacity="0.06" stroke="#374151" strokeWidth="0.5">
+        <rect width={VIEW_W} height={VIEW_H} fill="#F8FAFC" />
+        <g opacity="0.4" stroke="#E2E8F0" strokeWidth="0.5">
           {Array.from({ length: 16 }).map((_, i) => (
             <line key={`v${i}`} x1={i * 50} y1="0" x2={i * 50} y2={VIEW_H} />
           ))}
         </g>
-        <text x="20" y="30" fill="#9CA3AF" fontSize="11" fontFamily="monospace">
-          {stateName?.toUpperCase()} · DISTRICT DRILLDOWN
+        <text x="20" y="30" fill="#1E293B" fontSize="12" fontWeight="700">
+          {stateName?.toUpperCase()} · DISTRICT-LEVEL MONITORING
         </text>
-        <text x="20" y="48" fill="#6B7280" fontSize="9" fontFamily="monospace">
-          {distData.length} LGD DISTRICTS · {schemeCode ?? "ALL SCHEMES"}
+        <text x="20" y="48" fill="#64748B" fontSize="10">
+          {distData.length} LGD Districts Ingested · {schemeCode ?? "All Centrally Sponsored Schemes"}
         </text>
 
         {loading && (
-          <text x={VIEW_W / 2} y={VIEW_H / 2} textAnchor="middle" fill="#6B7280" fontSize="11" fontFamily="monospace">
-            loading districts…
+          <text x={VIEW_W / 2} y={VIEW_H / 2} textAnchor="middle" fill="#64748B" fontSize="11">
+            Loading district data…
           </text>
         )}
 
@@ -303,7 +282,7 @@ export function Choropleth({
             const isHover = hover?.lgd === d.lgd_code;
             const isSelected = selectedDistrictLgd === d.lgd_code;
             return (
-              <g key={d.lgd_code}>
+              <g key={`${d.lgd_code}-${i}`}>
                 <rect
                   x={x}
                   y={y}
@@ -311,14 +290,14 @@ export function Choropleth({
                   height={tileH}
                   rx="6"
                   fill={fill}
-                  fillOpacity={isHover || isSelected ? 0.95 : 0.5}
-                  stroke={isSelected ? "#06B6D4" : isHover ? "#3B82F6" : "#1F2937"}
+                  fillOpacity={isHover || isSelected ? 0.95 : 0.8}
+                  stroke={isSelected ? "#0B4F9C" : isHover ? "#0B4F9C" : "#FFFFFF"}
                   strokeWidth={isSelected ? 2.5 : isHover ? 1.5 : 1}
                   className="cursor-pointer transition-all"
                   onMouseEnter={() =>
                     setHover({
                       name: d.entity_name,
-                      value: `${v.toFixed(1)}% util · ₹${d.metrics.released.toFixed(0)} Cr released`,
+                      value: `${v.toFixed(1)}% Utilization · ₹${d.metrics.released.toFixed(0)} Cr Released`,
                       lgd: d.lgd_code,
                       x: x + tileW / 2,
                       y,
@@ -327,13 +306,13 @@ export function Choropleth({
                   onMouseLeave={() => setHover(null)}
                   onClick={() => onSelectDistrict?.(d.lgd_code)}
                 />
-                <text x={x + tileW / 2} y={y + 24} textAnchor="middle" fontSize="10" fill="#F9FAFB" fontWeight="600" pointerEvents="none">
+                <text x={x + tileW / 2} y={y + 24} textAnchor="middle" fontSize="10" fill="#FFFFFF" fontWeight="700" pointerEvents="none">
                   {d.entity_name.length > 16 ? d.entity_name.slice(0, 14) + "…" : d.entity_name}
                 </text>
-                <text x={x + tileW / 2} y={y + 44} textAnchor="middle" fontSize="18" fill="#F9FAFB" fontFamily="monospace" fontWeight="700" pointerEvents="none">
+                <text x={x + tileW / 2} y={y + 46} textAnchor="middle" fontSize="18" fill="#FFFFFF" fontWeight="800" pointerEvents="none">
                   {v.toFixed(0)}%
                 </text>
-                <text x={x + tileW / 2} y={y + 62} textAnchor="middle" fontSize="8" fill="#9CA3AF" fontFamily="monospace" pointerEvents="none">
+                <text x={x + tileW / 2} y={y + 64} textAnchor="middle" fontSize="9" fill="#FFFFFF" opacity="0.9" pointerEvents="none">
                   LGD {d.lgd_code}
                 </text>
               </g>
@@ -344,16 +323,16 @@ export function Choropleth({
 
       {hover && (
         <div
-          className="absolute pointer-events-none z-20 rounded-md bg-surface-elevated border border-blue-700/50 shadow-xl px-3 py-2"
+          className="absolute pointer-events-none z-20 rounded-lg bg-white border border-gray-300 shadow-md px-3 py-2 text-left"
           style={{
             left: `${(hover.x / VIEW_W) * 100}%`,
             top: `${(hover.y / VIEW_H) * 100}%`,
             transform: "translate(-50%, -110%)",
           }}
         >
-          <div className="text-xs font-semibold text-white">{hover.name}</div>
-          <div className="text-[10px] text-cyan-300 font-mono mt-0.5">LGD {hover.lgd}</div>
-          <div className="text-[11px] text-secondary-muted mt-1">{hover.value}</div>
+          <div className="text-xs font-bold text-gray-900">{hover.name}</div>
+          <div className="text-[10px] text-[#0B4F9C] font-semibold mt-0.5">District LGD: {hover.lgd}</div>
+          <div className="text-[11px] text-gray-600 mt-1">{hover.value}</div>
         </div>
       )}
     </div>

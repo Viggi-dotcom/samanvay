@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
+import { SovereignTricolorRibbon } from "./ashoka-emblem";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -17,36 +18,41 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-app">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:block sticky top-0 h-screen">
-        <Sidebar />
-      </div>
+    <div className="min-h-screen flex flex-col bg-[#F4F6F9] text-gray-900 antialiased">
+      {/* National Tricolor Stripe */}
+      <SovereignTricolorRibbon height="h-1.5" />
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <>
-          <div
-            className="lg:hidden fixed inset-0 bg-black/60 z-40"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="lg:hidden fixed left-0 top-0 bottom-0 z-50">
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
-          </div>
-        </>
-      )}
+      <div className="flex-1 flex min-h-0">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block sticky top-0 h-[calc(100vh-6px)]">
+          <Sidebar />
+        </div>
 
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        <Header onMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full">
-          {children}
-        </main>
+        {/* Mobile drawer */}
+        {mobileOpen && (
+          <>
+            <div
+              className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity"
+              onClick={() => setMobileOpen(false)}
+            />
+            <div className="lg:hidden fixed left-0 top-0 bottom-0 z-50 shadow-2xl">
+              <Sidebar onNavigate={() => setMobileOpen(false)} />
+            </div>
+          </>
+        )}
+
+        <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+          <Header onMenu={() => setMobileOpen(true)} />
+          <main className="flex-1 p-5 sm:p-6 lg:p-8 max-w-[1680px] mx-auto w-full">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
 }
 
-// Reusable primitives -----
+// Reusable primitives for official government presentation -----
 
 export function PageHeader({
   title,
@@ -62,28 +68,32 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-5">
-      <div className="flex items-start gap-3 min-w-0">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-200">
+      <div className="flex items-start gap-3.5 min-w-0">
         {Icon && (
-          <div className="h-9 w-9 shrink-0 rounded-md bg-surface-elevated border border-subtle flex items-center justify-center">
-            <Icon className="h-4 w-4 text-cyan-400" />
+          <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center shadow-xs">
+            <Icon className="h-5 w-5 text-[#0B4F9C]" />
           </div>
         )}
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl lg:text-2xl font-semibold text-white tracking-tight">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 tracking-tight">
               {title}
             </h1>
             {badge}
           </div>
           {subtitle && (
-            <p className="text-sm text-secondary-muted mt-1 max-w-2xl">
+            <p className="text-xs text-gray-600 mt-1 max-w-3xl leading-relaxed">
               {subtitle}
             </p>
           )}
         </div>
       </div>
-      {actions && <div className="shrink-0">{actions}</div>}
+      {actions && (
+        <div className="shrink-0 flex items-center gap-2 flex-wrap">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -110,32 +120,36 @@ export function KpiCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "text-left rounded-lg border bg-surface-elevated p-4 transition-all",
-        onClick && "hover:border-blue-600/50 hover:bg-surface-hover cursor-pointer",
-        alert === "critical" && "border-red-900/50",
-        alert === "warning" && "border-amber-900/50",
-        alert === "success" && "border-emerald-900/50",
-        !alert && "border-subtle"
+        "text-left rounded-lg border bg-white p-4.5 transition-all shadow-xs relative overflow-hidden group",
+        onClick && "hover:border-[#0B4F9C] hover:shadow-sm cursor-pointer",
+        alert === "critical" && "border-red-300 bg-red-50/30",
+        alert === "warning" && "border-amber-300 bg-amber-50/30",
+        alert === "success" && "border-green-300 bg-green-50/30",
+        !alert && "border-gray-200 hover:border-gray-300"
       )}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-[11px] uppercase tracking-wider text-secondary-muted font-medium">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
           {label}
         </span>
-        {Icon && <Icon className="h-4 w-4 text-tertiary shrink-0" />}
+        {Icon && (
+          <div className="h-8 w-8 rounded bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
+            <Icon className="h-4 w-4 text-[#0B4F9C]" />
+          </div>
+        )}
       </div>
-      <div className="text-2xl font-bold text-white text-mono tracking-tight">
+      <div className="text-2xl lg:text-3xl font-bold text-gray-900 font-mono tracking-tight my-1">
         {value}
       </div>
-      <div className="flex items-center justify-between mt-1.5 gap-2">
-        {sub && <span className="text-[11px] text-tertiary truncate">{sub}</span>}
+      <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
+        {sub && <span className="text-xs text-gray-500 truncate">{sub}</span>}
         {trend && (
           <span
             className={cn(
-              "text-[11px] font-mono px-1.5 py-0.5 rounded shrink-0",
+              "text-xs font-mono font-medium px-2 py-0.5 rounded shrink-0 flex items-center gap-1",
               trend.good ?? trend.dir === "up"
-                ? "bg-emerald-950 text-emerald-400"
-                : "bg-red-950 text-red-300"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-red-50 text-red-700 border border-red-200"
             )}
           >
             {trend.dir === "up" ? "↑" : "↓"} {trend.value}
@@ -164,20 +178,20 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-lg border border-subtle bg-surface-elevated",
+        "rounded-lg border border-gray-200 bg-white shadow-xs overflow-hidden",
         className
       )}
     >
       {(title || actions) && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-subtle">
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-200 bg-gray-50/70">
           <div className="min-w-0">
             {title && (
-              <h3 className="text-sm font-semibold text-white truncate">
+              <h3 className="text-sm font-bold text-gray-900 truncate">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-[11px] text-tertiary mt-0.5 truncate">
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
                 {subtitle}
               </p>
             )}
@@ -185,7 +199,7 @@ export function Card({
           {actions && <div className="shrink-0">{actions}</div>}
         </div>
       )}
-      <div className={cn("p-4", bodyClassName)}>{children}</div>
+      <div className={cn("p-5", bodyClassName)}>{children}</div>
     </div>
   );
 }
@@ -196,15 +210,15 @@ export function SeverityBadge({
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 }) {
   const map = {
-    LOW: "bg-slate-800 text-slate-300 border-slate-700",
-    MEDIUM: "bg-amber-950 text-amber-300 border-amber-900/60",
-    HIGH: "bg-orange-950 text-orange-300 border-orange-900/60",
-    CRITICAL: "bg-red-950 text-red-300 border-red-900/60",
+    LOW: "bg-gray-100 text-gray-700 border-gray-200",
+    MEDIUM: "bg-amber-50 text-amber-800 border-amber-200",
+    HIGH: "bg-orange-50 text-orange-800 border-orange-200",
+    CRITICAL: "bg-red-50 text-red-800 border-red-200 font-bold",
   };
   return (
     <span
       className={cn(
-        "text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border",
+        "text-xs font-mono uppercase px-2 py-0.5 rounded border font-medium",
         map[severity]
       )}
     >
@@ -215,20 +229,20 @@ export function SeverityBadge({
 
 export function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    OPEN: "bg-red-950 text-red-300 border-red-900/60",
-    ACKNOWLEDGED: "bg-amber-950 text-amber-300 border-amber-900/60",
-    RESOLVED: "bg-emerald-950 text-emerald-400 border-emerald-900/60",
-    SUCCESS: "bg-emerald-950 text-emerald-400 border-emerald-900/60",
-    PARTIAL: "bg-amber-950 text-amber-300 border-amber-900/60",
-    FAILED: "bg-red-950 text-red-300 border-red-900/60",
-    ACTIVE: "bg-emerald-950 text-emerald-400 border-emerald-900/60",
-    SUSPENDED: "bg-red-950 text-red-300 border-red-900/60",
+    OPEN: "bg-red-50 text-red-700 border-red-200",
+    ACKNOWLEDGED: "bg-amber-50 text-amber-700 border-amber-200",
+    RESOLVED: "bg-green-50 text-green-700 border-green-200",
+    SUCCESS: "bg-green-50 text-green-700 border-green-200",
+    PARTIAL: "bg-amber-50 text-amber-700 border-amber-200",
+    FAILED: "bg-red-50 text-red-700 border-red-200",
+    ACTIVE: "bg-green-50 text-green-700 border-green-200",
+    SUSPENDED: "bg-red-50 text-red-700 border-red-200",
   };
   return (
     <span
       className={cn(
-        "text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border",
-        map[status] ?? "bg-slate-800 text-slate-300 border-slate-700"
+        "text-xs font-mono uppercase px-2 py-0.5 rounded border font-medium",
+        map[status] ?? "bg-gray-100 text-gray-700 border-gray-200"
       )}
     >
       {status}

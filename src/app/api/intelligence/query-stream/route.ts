@@ -27,7 +27,7 @@ CRITICAL RULES:
 4. Utilization % = utilizedCr * 1.0 / NULLIF(releasedCr, 0) * 100.
 5. Always include a LIMIT clause (≤ 100).
 6. Read-only SELECT queries only.
-7. Common state LGD codes: Uttar Pradesh=9, Bihar=10, Odisha=21, Madhya Pradesh=23, Rajasthan=8, Maharashtra=27, West Bengal=19.
+7. Common state LGD codes: Uttar Pradesh=27, Bihar=10, Odisha=9, Madhya Pradesh=23, Rajasthan=24, Maharashtra=7, West Bengal=16.
 
 OUTPUT FORMAT: respond with strict JSON only, no prose, no markdown fences. Format:
 {"sql": "SELECT ... LIMIT 100;", "rationale": "1-2 sentence explanation"}
@@ -67,19 +67,20 @@ export async function POST(req: NextRequest) {
 
       try {
         send("status", { stage: "generating_sql", message: "Generating SQL via LLM..." });
-        const zai = await ZAI.create();
-        const genCompletion = await zai.chat.completions.create({
-          messages: [
-            { role: "assistant", content: SCHEMA_CONTEXT },
-            { role: "user", content: `User role: ${claims.role}\nScope: ${scopeDescription}\nQuestion: "${prompt}"\n\nGenerate the SQL query and rationale. Strict JSON only.` },
-          ],
-          thinking: { type: "disabled" },
-        });
-
-        const rawLlmResponse = genCompletion.choices[0]?.message?.content ?? "";
         let generatedSql = "";
         let rationale = "";
+
         try {
+          const zai = await ZAI.create();
+          const genCompletion = await zai.chat.completions.create({
+            messages: [
+              { role: "assistant", content: SCHEMA_CONTEXT },
+              { role: "user", content: `User role: ${claims.role}\nScope: ${scopeDescription}\nQuestion: "${prompt}"\n\nGenerate the SQL query and rationale. Strict JSON only.` },
+            ],
+            thinking: { type: "disabled" },
+          });
+
+          const rawLlmResponse = genCompletion.choices[0]?.message?.content ?? "";
           const jsonMatch = rawLlmResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
             rationale = parsed.rationale ?? "";
           }
         } catch {}
+
         if (!generatedSql) {
           generatedSql = generateFallbackSql(prompt, claims, currentFilters);
           rationale = "Generated via fallback template.";

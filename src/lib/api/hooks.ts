@@ -520,3 +520,100 @@ export function useExportBrief() {
     },
   });
 }
+
+// ---------- Inter-Ministerial Directives ----------
+
+export interface DirectiveItem {
+  step: number;
+  action: string;
+  nodal: string;
+}
+
+export interface Directive {
+  id: string;
+  refNumber: string;
+  title: string;
+  targetStateLgd: number;
+  stateName: string;
+  targetDistrictLgd: number | null;
+  districtName: string | null;
+  targetMinistries: string;
+  participatingOfficers: string;
+  triggerAnomalyId: string | null;
+  evidenceSummary: string;
+  directives: DirectiveItem[];
+  status: "DRAFT" | "ISSUED" | "IN_PROGRESS" | "COMPLIANCE_RECEIVED" | "CLOSED";
+  priority: "CRITICAL" | "HIGH" | "MEDIUM";
+  issuedByRole: string;
+  issuedByEmail: string;
+  issuedAt: string;
+  deadlineDays: number;
+}
+
+export interface DirectivesResponse {
+  directives: Directive[];
+  stats: {
+    total: number;
+    critical: number;
+    issued: number;
+    inProgress: number;
+    complianceReceived: number;
+  };
+}
+
+export function useDirectives(filters?: { status?: string; stateLgd?: number | null; districtLgd?: number | null }) {
+  const p = new URLSearchParams();
+  if (filters?.status && filters.status !== "ALL") p.set("status", filters.status);
+  if (filters?.stateLgd) p.set("stateLgd", String(filters.stateLgd));
+  if (filters?.districtLgd) p.set("districtLgd", String(filters.districtLgd));
+
+  return useQuery({
+    queryKey: ["directives", filters],
+    queryFn: async () => {
+      const res = await fetch(`/api/directives?${p.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as DirectivesResponse;
+    },
+    staleTime: 15_000,
+  });
+}
+
+export function useCreateDirective() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<Directive>) => {
+      const res = await fetch("/api/directives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["directives"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
+    },
+  });
+}
+
+export function useUpdateDirectiveStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/directives/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["directives"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
+    },
+  });
+}

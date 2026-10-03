@@ -18,6 +18,7 @@ export type ViewId =
   | "intelligence-alerts"
   | "insights"
   | "simulator"
+  | "directives"
   | "admin-pipelines"
   | "admin-users";
 
@@ -29,14 +30,18 @@ export interface ActiveFilters {
   quarter: number | null;
 }
 
+export type AppTheme = "cabinet" | "sovereign" | "kautilya";
+
 interface AppState {
   view: ViewId;
+  theme: AppTheme;
   selectedSchemeId: string | null;
   selectedStateLgd: number | null;
   selectedDistrictLgd: number | null;
   filters: ActiveFilters;
 
   setView: (v: ViewId) => void;
+  setTheme: (t: AppTheme) => void;
   openScheme: (schemeId: string) => void;
   openState: (stateLgd: number) => void;
   openDistrict: (distLgd: number) => void;
@@ -52,14 +57,32 @@ const DEFAULT_FILTERS: ActiveFilters = {
   quarter: null,
 };
 
+const getInitialTheme = (): AppTheme => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("samanvay_theme") as AppTheme | null;
+    if (saved && (saved === "cabinet" || saved === "sovereign" || saved === "kautilya")) {
+      return saved;
+    }
+  }
+  return "cabinet";
+};
+
 export const useApp = create<AppState>((set) => ({
   view: "overview",
+  theme: getInitialTheme(),
   selectedSchemeId: null,
   selectedStateLgd: null,
   selectedDistrictLgd: null,
   filters: DEFAULT_FILTERS,
 
   setView: (v) => set({ view: v }),
+  setTheme: (t) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("samanvay_theme", t);
+      document.documentElement.setAttribute("data-theme", t);
+    }
+    set({ theme: t });
+  },
   openScheme: (schemeId) => set({ view: "scheme-detail", selectedSchemeId: schemeId }),
   openState: (stateLgd) => set({ view: "geo-state", selectedStateLgd: stateLgd }),
   openDistrict: (distLgd) => set({ view: "geo-district", selectedDistrictLgd: distLgd }),
