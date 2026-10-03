@@ -27,11 +27,15 @@ export const authOptions: NextAuthOptions = {
         if (user.status !== "ACTIVE") return null;
         if (user.passwordHash !== credentials.password) return null; // plaintext for demo
 
-        // Update lastActive
-        await db.user.update({
-          where: { id: user.id },
-          data: { lastActive: new Date() },
-        });
+        // Update lastActive (non-fatal — don't let write errors break login)
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { lastActive: new Date() },
+          });
+        } catch (e) {
+          console.warn("[auth] lastActive update failed (non-fatal):", e);
+        }
 
         return {
           id: user.id,
